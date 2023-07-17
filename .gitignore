@@ -1,4 +1,5 @@
 beatrice/local.py
 *.sqlite
 *.db
+.idea
 
