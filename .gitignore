@@ -1,0 +1,4 @@
+beatrice/local.py
+*.sqlite
+*.db
+
