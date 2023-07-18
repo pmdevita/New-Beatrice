@@ -113,3 +113,9 @@ async def add(ctx: atsume.Context, first_filter: Annotated[Optional[Str], "First
         return
     await GearRequest.objects.create(**kwargs)
     await ctx.respond(f"Added alert for gear with {format_gear_request(gear, brand, skill)}.")
+
+
+@message_group.as_sub_command("check")
+async def check(ctx: atsume.Context, session: alluka.Injected[aiohttp.ClientSession], client: alluka.Injected[tanjun.Client]):
+    await check_gear(session, client)
+    await ctx.respond("Checked!")

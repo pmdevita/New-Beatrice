@@ -5,6 +5,7 @@ import alluka
 import aiohttp
 import random
 
+import hikari
 import tanjun
 
 from .models import *
@@ -59,6 +60,10 @@ async def check_gear(session: alluka.Injected[aiohttp.ClientSession], client: al
         brand = await Brand.objects.get(id=int(merch["gear"]["brand"]["id"]))
         skill = await Skill.objects.get(id=int(merch["skill"]["id"]))
 
+        gear_image = get_image_link(merch["gear"]["image"])
+        skill_image = get_image_link(merch["skill"]["image"])
+        brand_image = get_image_link(merch["gear"]["brand"]["image"])
+
         rows = await GearRequest.objects.filter(
             ((GearRequest.gear.pid == gear.pid) | (GearRequest.gear.pid.isnull(True))) &
             ((GearRequest.brand.id == brand.id) | (GearRequest.brand.id.isnull(True))) &
@@ -67,24 +72,16 @@ async def check_gear(session: alluka.Injected[aiohttp.ClientSession], client: al
         ).select_related(["gear", "brand", "skill"]).all()
 
         for request in rows:
-            gear_image = get_image_link(merch["gear"]["image"])
-            skill_image = get_image_link(merch["skill"]["image"])
-            brand_image = get_image_link(merch["gear"]["brand"]["image"])
-            # if request.gear is None:
-            #     if request.skill:
-            #     else:
-            #         image_link = self._get_image_link(merch["gear"]["brand"]["image"])
             user = client.cache.get_user(request.user)
             channel = await user.fetch_dm_channel()
             message = f"An item with {format_gear_request(gear, brand, skill)} " \
                       f"is available on the SplatNet store! (Your request was for an item with " \
                       f"{format_gear_request(request.gear, request.brand, request.skill)})"
-            embed1 = nextcord.Embed(title="Splatgear Alert!", description=message)
-            embed2 = None
-
+            embed1 = hikari.Embed(title="Splatgear Alert!", description=message)
             embed1.set_image(gear_image)
             embed1.set_thumbnail(brand_image)
-            embed2 = nextcord.Embed()
+
+            embed2 = hikari.Embed()
             embed2.set_thumbnail(skill_image)
             embeds = [embed1, embed2]
 
@@ -111,6 +108,7 @@ async def check_gear(session: alluka.Injected[aiohttp.ClientSession], client: al
             # embeds = [embed1]
             # if embed2:
             #     embeds.append(embed2)
+
             await channel.send(embeds=embeds)
-            request.last_messaged = datetime.now(self.discord.timer.timezone)
+            request.last_messaged = datetime.now(timezone.utc)
             await request.update()
