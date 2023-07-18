@@ -8,7 +8,7 @@ import tanjun
 import aiohttp
 
 from typing import Annotated, Optional
-from tanjun.annotations import Member, Positional, Choices, Str
+from tanjun.annotations import Member, Positional, Choices, Str, Int
 
 from .models import *
 from .jobs import *
@@ -79,6 +79,7 @@ async def list_properties(ctx: atsume.Context, category: Annotated[Str, "Categor
 
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
+@slash_group.as_sub_command("add", "Add a watch for gear.")
 @message_group.as_sub_command("add")
 async def add(ctx: atsume.Context, first_filter: Annotated[Optional[Str], "First property to limit to", Positional()] = None,
               second_filter: Annotated[Optional[Str], "Second property to limit to", Positional()] = None,
@@ -115,7 +116,62 @@ async def add(ctx: atsume.Context, first_filter: Annotated[Optional[Str], "First
     await ctx.respond(f"Added alert for gear with {format_gear_request(gear, brand, skill)}.")
 
 
+@slash_group.as_sub_command("check", "Check the Splatoon 2 store for updates")
 @message_group.as_sub_command("check")
 async def check(ctx: atsume.Context, session: alluka.Injected[aiohttp.ClientSession], client: alluka.Injected[tanjun.Client]):
     await check_gear(session, client)
     await ctx.respond("Checked!")
+
+
+@slash_group.as_sub_command("watches", "List your current gear watches.")
+@message_group.as_sub_command("watches", "requests")
+async def watches(ctx: atsume.Context):
+    print("please work")
+    async with ctx.get_channel().trigger_typing():
+        user = ctx.author.id
+        message = "```\n"
+        i = 1
+        for watch in await GearRequest.objects.filter(user=user).select_related(["gear", "brand", "skill"]).all():
+            message += f"{i}: {format_gear_request(watch.gear, watch.brand, watch.skill)}\n"
+            i += 1
+        if i == 1:
+            await ctx.respond("You currently do not have any watches set.")
+        else:
+            message += "```"
+            await ctx.respond(message)
+
+
+@tanjun.annotations.with_annotated_args(follow_wrapped=True)
+@slash_group.as_sub_command("delete", "Delete the given gear watches.")
+@message_group.as_sub_command("delete")
+async def delete(ctx: atsume.Context, id: Annotated[Int, "The watch ID to delete", Positional()]):
+    id_list = [id]
+    delete_ids = []
+    for i in id_list:
+        try:
+            delete_ids.append(int(i))
+        except ValueError:
+            await ctx.respond(f"Error: {i} is not a number.")
+            return
+    delete_ids.sort(reverse=True)
+    rows = await GearRequest.objects.filter(user=ctx.author.id).select_related(["gear", "brand", "skill"]).all()
+
+    delete_strings = []
+    for id in delete_ids:
+        if id > len(rows):
+            continue
+        watch = rows[id - 1]
+        delete_strings.append(f"{id}: {self.format_gear_request(watch.gear, watch.brand, watch.skill)}")
+        await watch.delete()
+    delete_strings.reverse()
+
+    if not delete_strings:
+        await ctx.respond("Error: No watches found.")
+        return
+    if len(delete_strings) == 1:
+        message = f"Deleted watch {delete_strings[0]}."
+    elif len(delete_strings) == 2:
+        message = f"Deleted watches {delete_strings[0]} and {delete_strings[1]}."
+    else:
+        message = "Deleted watches " + ", ".join([i for i in delete_strings[:-1]]) + f", and {delete_strings[-1]}."
+    await ctx.respond(message)
