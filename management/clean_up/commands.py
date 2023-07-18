@@ -14,7 +14,7 @@ from .models import *
 # Create your commands here.
 
 
-@atsume.as_time_schedule(hours=0)
+@atsume.as_time_schedule(hours=0, minutes=0, seconds=0)
 async def clean_up(client: alluka.Injected[tanjun.Client], component: atsume.Component) -> None:
     logging.info("Cleaning up channels...")
     yt_regex = re.compile("(https?://(?:youtube.com|youtu.be))")
