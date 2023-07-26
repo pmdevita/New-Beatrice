@@ -3,10 +3,9 @@ name = "beatrice"
 version = "0.1.0"
 description = ""
 authors = ["Peter DeVita <mewtwo2643@yahoo.com>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11,<3.12"
+python = "^3.10,<3.12"
 atsume = {git = "https://github.com/pmdevita/hikari-atsume.git"}
 aiosqlite = "^0.19.0"
 aioconsole = "^0.6.1"
