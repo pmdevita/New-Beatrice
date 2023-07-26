@@ -89,7 +89,7 @@ async def add(ctx: atsume.Context, first_filter: Annotated[Optional[Str], "First
     skill = None
     args = [first_filter, second_filter, third_filter]
     args = [i for i in args if i]
-    kwargs = {"user": ctx.author.id, "last_messaged": datetime.now() - timedelta(days=2)}
+    kwargs = {"user": ctx.author.id}
     for i in args:
         if not i:
             continue
@@ -108,10 +108,11 @@ async def add(ctx: atsume.Context, first_filter: Annotated[Optional[Str], "First
         if new_brand is None and new_gear is None and new_skill is None:
             await ctx.respond(f"Unknown property \"{i}\"")
             return
-    existing_request = GearRequest.objects.filter(**kwargs)
+    existing_request = await GearRequest.objects.filter(**kwargs).all()
     if existing_request:
         await ctx.respond(f"You already have an alert set for {format_gear_request(gear, brand, skill)}.")
         return
+    kwargs["last_messaged"] = datetime.now() - timedelta(days=2)
     await GearRequest.objects.create(**kwargs)
     await ctx.respond(f"Added alert for gear with {format_gear_request(gear, brand, skill)}.")
 
@@ -161,7 +162,7 @@ async def delete(ctx: atsume.Context, id: Annotated[Int, "The watch ID to delete
         if id > len(rows):
             continue
         watch = rows[id - 1]
-        delete_strings.append(f"{id}: {self.format_gear_request(watch.gear, watch.brand, watch.skill)}")
+        delete_strings.append(f"{id}: {format_gear_request(watch.gear, watch.brand, watch.skill)}")
         await watch.delete()
     delete_strings.reverse()
 
