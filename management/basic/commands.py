@@ -10,6 +10,8 @@ import tanjun
 import atsume
 from atsume.settings import settings
 
+from .models import *
+
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 from tanjun.annotations import Member, User, Positional
@@ -68,4 +70,3 @@ async def on_message(message: hikari.events.MessageCreateEvent):
 
 
 # Todo: Port sound commands (hello, inhale, mouthful)
-

@@ -1,10 +1,16 @@
 import asyncio
+import gc
+import logging
+import sys
 import typing
 
 import alluka
 import atsume
 import tanjun
 import aioconsole
+
+from atsume.component.manager import manager
+from atsume.bot import load_component
 
 
 from util import start_background_task
@@ -62,15 +68,53 @@ async def unloader() -> None:
 
 
 async def cogs(client: tanjun.Client):
-    print(client.components)
+    print("Components loaded:")
+    for i in client.components:
+        print(f"- {i.name}")
 
 
 async def guilds(client: tanjun.Client):
-    print([client.cache.get_guild(g) for g in client.cache.get_guilds_view()])
+    print("Guilds active in:")
+    for i in client.cache.get_guilds_view():
+        g = client.cache.get_guild(i)
+        print(f"- \"{g.name}\" ({g.id})")
+
+
+async def unload(client: tanjun.Client, component_name: str):
+    component = client.get_component_by_name(component_name)
+    client.remove_component_by_name(component_name)
+    component_config = manager.get_config_by_name(component_name)
+    keys = []
+    for i in sys.modules.keys():
+        if i.startswith(component_config.module_path):
+            logging.info(f"reloading module {i}")
+            keys.append(i)
+    manager.unload_component(component_config)
+    del component_config
+    del component
+    gc.collect()
+    # print(gc.get_objects())
+    print(f"{component_name} unloaded.")
+
+
+async def load(client: tanjun.Client, component_name: str):
+    component_config = manager.load_component(component_name=component_name)
+    load_component(client, component_config)
+    print(f"{component_name} loaded.")
+
+
+async def reload(client: tanjun.Client, component_name: str):
+    await unload(client, component_name)
+    await load(client, component_name)
 
 
 commands = {
     "cogs": cogs,
-    "guilds": guilds
+    "components": cogs,
+    "apps": cogs,
+    "guilds": guilds,
+    "unload": unload,
+    "load": load,
+    "reload": reload,
 }
 

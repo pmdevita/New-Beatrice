@@ -3,14 +3,16 @@ from atsume.settings.type_hints import *
 from zoneinfo import ZoneInfo
 
 COMPONENTS = [
-    # "management.basic",
+    "management.basic",
     "management.clean_up",
     "management.console",
     "splatgear2",
+    "suscallout",
 ]
 
 MIDDLEWARE = [
-    "atsume.middleware.aiohttp"
+    "atsume.middleware.aiohttp",
+    "util.aiohttp_server.hook_aiohttp_server",
 ]
 
 HIKARI_LOGGING = True
