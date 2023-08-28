@@ -1,3 +1,5 @@
+import asyncio
+
 import alluka
 import hikari
 import tanjun
@@ -27,7 +29,9 @@ async def vc_test(ctx: atsume.Context) -> None:
     assert voice_channel_id is not None
     voice_channel = guild.get_channel(voice_channel_id)
     assert isinstance(voice_channel, hikari.GuildVoiceChannel)
-    await voice.connect_to(guild, voice_channel, VoiceConnection)
+    connection = await voice.connect_to(guild, voice_channel, VoiceConnection)
+    await asyncio.sleep(10)
+    await connection.disconnect()
 
 
 
