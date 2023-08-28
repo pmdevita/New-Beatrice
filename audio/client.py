@@ -123,34 +123,45 @@ class VoiceConnectionProcess:
         # print('end')
 
     async def stop(self) -> None:
-        logger.info(f"Stopping audio client for guild {self.guild_id}...")
-        self._stop = True
-        if self._manager_pipe_task:
-            self._manager_pipe_task.cancel()
-            self._manager_pipe_task = None
-        if self._process_pipe_task:
-            self._process_pipe_task.cancel()
-            self._process_pipe_task = None
-        if self._gateway_receive_task:
-            self._gateway_receive_task.cancel()
-            self._gateway_receive_task = None
-        if self._voice_receive_task:
-            self._voice_receive_task.cancel()
-            self._voice_receive_task = None
-        if self._heartbeat_task:
-            self._heartbeat_task.cancel()
-            self._heartbeat_task = None
-        if self.gateway:
-            # If this isn't closed by now, don't even bother because it'll just hang the whole thing
-            # await self.gateway.close(code=4000, message=b"")
-            if not self.gateway.closed:
-                logger.warning(f"Audio gateway for {self.guild_id} wasn't closed gracefully!")
-            self.gateway = None
-        if self.voice_socket:
-            self.voice_socket.close()
-            self.voice_socket = None
-        # Close the infinite wait to fully exit the asyncio loop
-        self._stop_event.set()
+        try:
+            logger.info(f"Stopping audio client for guild {self.guild_id}...")
+            self._stop = True
+            if self._manager_pipe_task:
+                self._manager_pipe_task.cancel()
+                self._manager_pipe_task = None
+            if self._process_pipe_task:
+                self._process_pipe_task.cancel()
+                self._process_pipe_task = None
+            if self._gateway_receive_task:
+                self._gateway_receive_task.cancel()
+                self._gateway_receive_task = None
+            if self._voice_receive_task:
+                self._voice_receive_task.cancel()
+                self._voice_receive_task = None
+            if self._heartbeat_task:
+                self._heartbeat_task.cancel()
+                self._heartbeat_task = None
+            if self.session:
+                if not self.session.closed:
+                    # I don't know why this error happens but it complains if we don't end the session
+                    try:
+                        await self.session.close()
+                    except asyncio.CancelledError:
+                        pass
+                    print("thank goodness")
+            if self.gateway:
+                # If this isn't closed by now, don't even bother because it'll just hang the whole thing
+                # await self.gateway.close(code=4000, message=b"")
+                if not self.gateway.closed:
+                    logger.warning(f"Audio gateway for {self.guild_id} wasn't closed gracefully!")
+                self.gateway = None
+            if self.voice_socket:
+                self.voice_socket.close()
+                self.voice_socket = None
+            # Close the infinite wait to fully exit the asyncio loop
+            self._stop_event.set()
+        except:
+            traceback.print_exc()
 
     async def manager_pipe_task(self) -> None:
         try:
@@ -160,8 +171,9 @@ class VoiceConnectionProcess:
                 string = data.decode()
                 print(string)
                 if string == "stop":
-                    # The gateway just hates if you don't handle it's closing properly, so we request to close
-                    # it if possible instead. This then hangs this task I'm pretty sure ugh
+                    # The gateway just hates if you don't handle its closing and listen for its events,
+                    # so we request to close it if possible instead.
+                    # This then hangs this task I'm pretty sure ugh
                     if self.gateway:
                         logger.info("Trying to cancel the gateway websocket...")
                         await self.gateway.close(code=4000, message=b"")
@@ -174,6 +186,7 @@ class VoiceConnectionProcess:
             traceback.print_exc()
 
     async def process_pipe_task(self) -> None:
+        # Todo: remove this over the new bridge stuff
         try:
             read_event = asyncio.Event()
             asyncio.get_event_loop().add_reader(self.process_pipe.fileno(), read_event.set)

@@ -7,6 +7,7 @@ import struct
 import traceback
 import typing
 
+import hikari.errors
 from hikari import snowflakes
 from hikari.events import voice_events
 from typing_extensions import Self
@@ -43,15 +44,11 @@ class VoiceManager:
 
     async def start_server(self) -> None:
         if not self.server:
+            logger.info("Starting bridge server")
             self.server = await asyncio.start_server(self.client_connected, host="127.0.0.1", port=MANAGER_PORT)
 
     async def add_listener(self, guild_id: snowflakes.Snowflake, connection: "VoiceConnection") -> None:
         self.connections[guild_id] = connection
-
-    async def _read_client(self, reader: asyncio.StreamReader):
-        size, = struct.unpack('<L', await reader.readexactly(4))
-        data = await reader.readexactly(size)
-        return data
 
     async def client_connected(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -67,7 +64,9 @@ class VoiceManager:
     async def remove_listener(self, guild_id):
         del self.connections[guild_id]
         if len(self.connections) == 0 and self.server:
+            logger.info("Last voice client closed, dropping bridge server")
             self.server.close()
+            self.server = None
 
 
 manager = VoiceManager()
@@ -96,12 +95,19 @@ class VoiceConnection(AbstractVoiceConnection):
 
     async def job_end(self) -> None:
         """Here we wait for the coprocess to end. This should be the main way of exiting the connection."""
-        await self.job
+        try:
+            await self.job
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            if not self.job.cancelled():
+                self.job.cancel()
         self._is_alive = False
-        await self.close_callback(self)
         if self.client_connection:
             await self.client_connection.close()
             await manager.remove_listener(self._guild_id)
+        try:
+            await self.close_callback(self)
+        except hikari.errors.ComponentStateConflictError:   # Might happen during shutdown
+            pass
         if self._client_task:
             self._client_task.cancel()
 
