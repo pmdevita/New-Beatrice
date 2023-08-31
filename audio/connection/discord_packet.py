@@ -51,7 +51,8 @@ def opcode_1_select(address: str, port: int, mode: str) -> str:
     })
 
 
-def opcode_5_speaking(ssrc: int, delay: int = 0, microphone: bool =True, soundshare: bool= False, priority: bool = False) -> str:
+def opcode_5_speaking(ssrc: int, delay: int = 0, microphone: bool = True,
+                      soundshare: bool = False, priority: bool = False) -> str:
     speaking = 0
     if microphone:
         speaking += 1 << 0
@@ -59,14 +60,15 @@ def opcode_5_speaking(ssrc: int, delay: int = 0, microphone: bool =True, soundsh
         speaking += 1 << 1
     if priority:
         speaking += 1 << 2
-    return _opcode({
-        "op": speaking,
-        "d": {
-            "speaking": 5,
-            "delay": 0,
-            "ssrc": 1
-        }
-    })
+    return f"{{\"op\":5,\"d\":{{\"speaking\":{speaking},\"delay\":{delay},\"ssrc\":{ssrc}}}}}"
+    # return _opcode({
+    #     "op": 5,
+    #     "d": {
+    #         "speaking": speaking,
+    #         "delay": delay,
+    #         "ssrc": ssrc
+    #     }
+    # })
 
 
 def opcode_3_heartbeat(nonce: int) -> str:
@@ -97,17 +99,23 @@ def get_ip_response(data: bytes) -> typing.Tuple[str, int]:
 class RTPHeader:
     def __init__(self, ssrc: int) -> None:
         self.ssrc = ssrc
-        self.sequence = 1
+        self.sequence = 0
+        self.timestamp = 0
 
     def get_next_header(self) -> bytes:
         header = bytearray(12)
         header[0] = 0x80
         header[1] = 0x78
         struct.pack_into(">H", header, 2, self.sequence)
-        struct.pack_into(">I", header, 4, int(time.time()))
+        struct.pack_into(">I", header, 4, self.timestamp)
         struct.pack_into(">I", header, 8, self.ssrc)
+        # print(self.sequence, self.timestamp)
+        self.sequence += 1
+        self.timestamp += 960
         if self.sequence > 65536:
-            self.sequence = 1
+            self.sequence = 0
+        if self.timestamp > 4294967295:
+            self.timestamp = 0
         return header
 
 

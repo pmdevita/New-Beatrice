@@ -14,12 +14,11 @@ from typing_extensions import Self
 
 from hikari.api import VoiceConnection as AbstractVoiceConnection, VoiceComponent
 
-from .client import process_runtime
-from .bridge import TCPSocketBridge, AbstractCommunicationBridge
+from audio.connection.client import VoiceConnectionProcess, process_runtime
+from audio.connection.process_bridge import TCPSocketBridge, AbstractCommunicationBridge
 
 logger = logging.getLogger(__name__)
 
-_pool = concurrent.futures.ProcessPoolExecutor()
 _job_end_tasks: set[asyncio.Task] = set()
 
 MANAGER_PORT = 12121
@@ -53,7 +52,6 @@ class VoiceManager:
     async def client_connected(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             connection = TCPSocketBridge(reader=reader, writer=writer)
-            print("client connected", reader, writer)
             guild = await connection.read()
             guild_id = int(guild.decode())
             logger.info(f"Client process for guild {guild_id} connected")
@@ -73,6 +71,8 @@ manager = VoiceManager()
 
 
 class VoiceConnection(AbstractVoiceConnection):
+    _POOL = concurrent.futures.ProcessPoolExecutor()
+
     def __init__(self, pipes: typing.Tuple[
         multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection],
                  job: asyncio.Future, on_close: typing.Callable[["VoiceConnection"], typing.Awaitable[None]],
@@ -97,16 +97,24 @@ class VoiceConnection(AbstractVoiceConnection):
         """Here we wait for the coprocess to end. This should be the main way of exiting the connection."""
         try:
             await self.job
+        except concurrent.futures.process.BrokenProcessPool as e:
+            traceback.print_exc()
+            logger.info("Reparing process pool...")
+            self.__class__._POOL.shutdown()
+            self.__class__._POOL = concurrent.futures.ProcessPoolExecutor()
         except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        finally:
             if not self.job.cancelled():
                 self.job.cancel()
         self._is_alive = False
         if self.client_connection:
             await self.client_connection.close()
             await manager.remove_listener(self._guild_id)
+            self.client_connection = None
         try:
             await self.close_callback(self)
-        except hikari.errors.ComponentStateConflictError:   # Might happen during shutdown
+        except hikari.errors.ComponentStateConflictError:  # Might happen during shutdown
             pass
         if self._client_task:
             self._client_task.cancel()
@@ -121,7 +129,7 @@ class VoiceConnection(AbstractVoiceConnection):
             multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection] = multiprocessing.Pipe(
             True)
         await manager.start_server()
-        job: asyncio.Future = loop.run_in_executor(_pool, process_runtime, channel_id, endpoint, guild_id, session_id,
+        job: asyncio.Future = loop.run_in_executor(cls._POOL, process_runtime, channel_id, endpoint, guild_id, session_id,
                                                    token, user_id, pipes, MANAGER_PORT)
         connection = cls(pipes, job, on_close, channel_id, endpoint, guild_id, owner, session_id, shard_id,
                          token, user_id)

@@ -8,7 +8,8 @@ import atsume
 from typing import Annotated, Optional
 from tanjun.annotations import Member, Positional
 
-from .connection.manager import VoiceConnection
+from audio.manager import VoiceConnection
+from .test import mp_test
 
 
 # Create your commands here.
@@ -30,7 +31,7 @@ async def vc_test(ctx: atsume.Context) -> None:
     voice_channel = guild.get_channel(voice_channel_id)
     assert isinstance(voice_channel, hikari.GuildVoiceChannel)
     connection = await voice.connect_to(guild, voice_channel, VoiceConnection)
-    await asyncio.sleep(10)
+    await asyncio.sleep(120)
     await connection.disconnect()
 
 

@@ -28,6 +28,7 @@ ffi.cdef("""
     int opus_encoder_get_size (int channels);
     OpusEncoder* opus_encoder_create(opus_int32 Fs, int	channels, int application, int * error);
     opus_int32 opus_encode (OpusEncoder * st, const opus_int16 * pcm, int frame_size, unsigned char * data, opus_int32 max_data_bytes);
+    void opus_encoder_destroy(OpusEncoder * st);
 """)
 
 ffi.set_source("_py_opus", """

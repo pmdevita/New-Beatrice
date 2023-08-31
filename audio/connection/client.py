@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import multiprocessing.connection
+import os
 import struct
 import traceback
 import typing
@@ -11,9 +12,13 @@ import asyncio_dgram
 
 from hikari import snowflakes
 
-from .packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, opcode_1_select
-from .bridge import AbstractCommunicationBridge, TCPSocketBridge
-from .packet import RTPHeader
+from atsume.bot import initialize_atsume
+
+from audio.connection.discord_packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, \
+    opcode_1_select, RTPHeader, opcode_5_speaking
+from audio.connection.process_bridge import AbstractCommunicationBridge, TCPSocketBridge
+from audio.encrypt import select_mode
+from audio.processing.manager import AudioManager
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +29,13 @@ def process_runtime(channel_id: snowflakes.Snowflake, endpoint: str, guild_id: s
                     pipes: typing.Tuple[
                         multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection],
                     manager_port: int) -> None:
-    connection = VoiceConnectionProcess(pipes, channel_id, endpoint, guild_id, session_id, token, user_id, manager_port)
-    asyncio.get_event_loop().run_until_complete(connection.start())
+    try:
+        settings_module = os.environ["ATSUME_SETTINGS_MODULE"]
+        initialize_atsume(settings_module)
+        connection = VoiceConnectionProcess(pipes, channel_id, endpoint, guild_id, session_id, token, user_id, manager_port)
+        asyncio.get_event_loop().run_until_complete(connection.start())
+    except:
+        traceback.print_exc()
 
 
 class VoiceConnectionProcess:
@@ -46,6 +56,7 @@ class VoiceConnectionProcess:
         self.session_id = session_id
         self.user_id = user_id
         self.manager_port = manager_port
+        self.audio = AudioManager(self)
 
         # Data set later by the Opcode 2 Ready response
         self.ssrc: typing.Optional[int] = None
@@ -68,12 +79,14 @@ class VoiceConnectionProcess:
         self._stop = False
         self._stop_event = asyncio.Event()
         self._voice_ready = asyncio.Event()
+        self._audio_ready = asyncio.Event()
         self._discovery_ready = asyncio.Event()
         self._process_pipe_task: typing.Optional[asyncio.Task] = None
         self._manager_pipe_task: typing.Optional[asyncio.Task] = None
         self._gateway_receive_task: typing.Optional[asyncio.Task] = None
         self._voice_receive_task: typing.Optional[asyncio.Task] = None
         self._heartbeat_task: typing.Optional[asyncio.Task] = None
+        self._audio_task: typing.Optional[asyncio.Task] = None
 
     async def start(self) -> None:
         # self._process_pipe_task = asyncio.Task(self.process_pipe_task())
@@ -118,6 +131,10 @@ class VoiceConnectionProcess:
 
         await self.manager_connection.write("done!".encode())
 
+        # Once we receive Opcode 4 with the secret key we can continue
+        await self._audio_ready.wait()
+        self._audio_task = asyncio.Task(self.audio.start())
+
         # Wait until we receive the stop event, which only fires after clean up completes
         await self._stop_event.wait()
         logger.info(f"Terminating event loop for {self.guild_id}")
@@ -130,6 +147,9 @@ class VoiceConnectionProcess:
         try:
             logger.info(f"Stopping audio client for guild {self.guild_id}...")
             self._stop = True
+            if self._audio_task:
+                self._audio_task.cancel()
+                self._audio_task = None
             if self._manager_pipe_task:
                 self._manager_pipe_task.cancel()
                 self._manager_pipe_task = None
@@ -152,7 +172,6 @@ class VoiceConnectionProcess:
                         await self.session.close()
                     except asyncio.CancelledError:
                         pass
-                    print("thank goodness")
             if self.gateway:
                 # If this isn't closed by now, don't even bother because it'll just hang the whole thing
                 # await self.gateway.close(code=4000, message=b"")
@@ -167,14 +186,20 @@ class VoiceConnectionProcess:
         except:
             traceback.print_exc()
 
+    async def set_speaking_state(self, state: bool):
+        print("pls speak", opcode_5_speaking(self.ssrc, microphone=state))
+        await self.gateway.send_str(opcode_5_speaking(self.ssrc, microphone=state))
+
+    @property
+    def is_stopped(self):
+        return self._stop
 
     async def manager_pipe_task(self) -> None:
         try:
             while not self._stop and self.manager_connection.is_alive:
                 data = await self.manager_connection.read()
-                print("got data", data)
                 string = data.decode()
-                print(string)
+                print("got data", string)
                 if string == "stop":
                     # The gateway just hates if you don't handle its closing and listen for its events,
                     # so we request to close it if possible instead.
@@ -274,6 +299,7 @@ class VoiceConnectionProcess:
             case 4:
                 self.encrypt_mode = opcode_data["mode"]
                 self.secret_key = bytes(opcode_data["secret_key"])
+                self._audio_ready.set()
             # Hello Opcode
             case 8:
                 logger.info("Receive Opcode 8 Hello!")

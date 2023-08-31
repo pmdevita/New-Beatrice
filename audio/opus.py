@@ -33,12 +33,20 @@ class OpusEncoder:
         """
         return frame_length * self._channels * int(ffi.sizeof("opus_int16")) * int(self._sample_rate / 1000)
 
-    def encode_numpy(self, pcm: np_typing.NDArray[np.int16], frame_size: int) -> None:
+    def encode_numpy(self, pcm: np_typing.NDArray[np.int16], frame_size: int) -> bytes:
         # can we keep this array allocated between encodes?
         output_data = ffi.new(f"unsigned char[{frame_size}]")
         input_data = ffi.cast("opus_int16 *", pcm.ctypes.data)
         packet_length = lib.opus_encode(self._opus_encoder_struct, input_data, frame_size, output_data, frame_size)
-        print(packet_length)
+        assert packet_length != -1
+        buffer = ffi.buffer(output_data)
+        return bytes(buffer)[:packet_length]
+
+    def close(self):
+        lib.opus_encoder_destroy(self._opus_encoder_struct)
+
+    def __del__(self):
+        self.close()
 
     @property
     def channels(self) -> typing.Literal[1, 2]:
