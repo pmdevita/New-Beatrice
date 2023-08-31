@@ -1,5 +1,6 @@
 import json
 import struct
+import time
 import typing
 
 # Todo: Replace JSON dumping with f-string templates?
@@ -91,3 +92,22 @@ def get_ip_response(data: bytes) -> typing.Tuple[str, int]:
     ip = data[ip_start:ip_end].decode("ascii")
     port = struct.unpack_from(">H", data, len(data) - 2)[0]
     return ip, port
+
+
+class RTPHeader:
+    def __init__(self, ssrc: int) -> None:
+        self.ssrc = ssrc
+        self.sequence = 1
+
+    def get_next_header(self) -> bytes:
+        header = bytearray(12)
+        header[0] = 0x80
+        header[1] = 0x78
+        struct.pack_into(">H", header, 2, self.sequence)
+        struct.pack_into(">I", header, 4, int(time.time()))
+        struct.pack_into(">I", header, 8, self.ssrc)
+        if self.sequence > 65536:
+            self.sequence = 1
+        return header
+
+

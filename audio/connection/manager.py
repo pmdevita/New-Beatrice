@@ -14,8 +14,8 @@ from typing_extensions import Self
 
 from hikari.api import VoiceConnection as AbstractVoiceConnection, VoiceComponent
 
-from audio.client import process_runtime
-from audio.bridge import TCPSocketBridge, AbstractCommunicationBridge
+from .client import process_runtime
+from .bridge import TCPSocketBridge, AbstractCommunicationBridge
 
 logger = logging.getLogger(__name__)
 

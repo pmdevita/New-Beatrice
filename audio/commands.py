@@ -8,7 +8,7 @@ import atsume
 from typing import Annotated, Optional
 from tanjun.annotations import Member, Positional
 
-from .manager import VoiceConnection
+from .connection.manager import VoiceConnection
 
 
 # Create your commands here.

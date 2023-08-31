@@ -12,8 +12,8 @@ import asyncio_dgram
 from hikari import snowflakes
 
 from .packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, opcode_1_select
-from .encrypt import select_mode
 from .bridge import AbstractCommunicationBridge, TCPSocketBridge
+from .packet import RTPHeader
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +52,10 @@ class VoiceConnectionProcess:
         self.voice_ip: typing.Optional[str] = None
         self.voice_port: typing.Optional[int] = None
         self.encrypt_mode: typing.Optional[str] = None
+        self.rtp_header: typing.Optional[RTPHeader] = None
+
+        # Data set later by the Opcode 4 Session Description response
+        self.secret_key: typing.Optional[bytes] = None
 
         # Data set later by the Opcode 8 Hello response
         self.heartbeat_interval: typing.Optional[float] = None
@@ -163,6 +167,7 @@ class VoiceConnectionProcess:
         except:
             traceback.print_exc()
 
+
     async def manager_pipe_task(self) -> None:
         try:
             while not self._stop and self.manager_connection.is_alive:
@@ -263,7 +268,12 @@ class VoiceConnectionProcess:
                 self.voice_ip = opcode_data["ip"]
                 self.voice_port = opcode_data["port"]
                 self.encrypt_mode = select_mode(opcode_data["modes"])
+                self.rtp_header = RTPHeader(self.ssrc)
                 self._voice_ready.set()
+            # Session Description Opcode
+            case 4:
+                self.encrypt_mode = opcode_data["mode"]
+                self.secret_key = bytes(opcode_data["secret_key"])
             # Hello Opcode
             case 8:
                 logger.info("Receive Opcode 8 Hello!")
