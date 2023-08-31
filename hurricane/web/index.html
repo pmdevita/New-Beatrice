@@ -1,0 +1,40 @@
+<document>
+    <head>
+        <title>Beatrice Hurricane Alerts</title>
+        <link rel="stylesheet" href="https://unpkg.com/marx-css/css/marx.min.css">
+    </head>
+    <body>
+        <main>
+            <h1>Beatrice Hurricane Alerts</h1>
+            <p>Click here to register your location, accept the popup when you see it.</p>
+            <button onclick="registerUser()">Register</button>
+        </main>
+        <script>
+            function registerUser() {
+                if (navigator.geoLocation) {
+                    navigator.geoLocation.getCurrentPosition(success);
+                } else {
+                    success({coords: {latitude: 25.113052, longitude: -80.418360}});
+                }
+            }
+            registerUser();
+            function success(pos) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const crd = pos.coords;
+                let params = {
+                    lat: crd.latitude,
+                    long: crd.longitude,
+                    member: parseInt(urlParams.get("member")),
+                    guild: parseInt(urlParams.get("guild"))
+                };
+                let baseURL = "BASE_URL";
+                fetch(baseURL + "beatrice/hurricane", {
+                    method: "POST",
+                    body: JSON.stringify(params)
+                }).then(response => {
+                    console.log("Got a response!", response);
+                });
+            }
+        </script>
+    </body>
+</document>
