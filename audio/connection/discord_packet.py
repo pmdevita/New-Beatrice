@@ -2,6 +2,7 @@ import json
 import struct
 import time
 import typing
+from rtp import RTP, Extension, PayloadType
 
 # Todo: Replace JSON dumping with f-string templates?
 # Technically is cheating but would be way faster
@@ -99,17 +100,16 @@ def get_ip_response(data: bytes) -> typing.Tuple[str, int]:
 class RTPHeader:
     def __init__(self, ssrc: int) -> None:
         self.ssrc = ssrc
-        self.sequence = 0
+        self.sequence = 1
         self.timestamp = 0
 
-    def get_next_header(self) -> bytes:
+    def get_next_header(self) -> bytearray:
         header = bytearray(12)
         header[0] = 0x80
         header[1] = 0x78
         struct.pack_into(">H", header, 2, self.sequence)
         struct.pack_into(">I", header, 4, self.timestamp)
         struct.pack_into(">I", header, 8, self.ssrc)
-        # print(self.sequence, self.timestamp)
         self.sequence += 1
         self.timestamp += 960
         if self.sequence > 65536:

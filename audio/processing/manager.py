@@ -23,10 +23,13 @@ logger = logging.getLogger(__name__)
 class AudioManager:
     def __init__(self, client: "VoiceConnectionProcess"):
         self.client = client
-        self.encoder = OpusEncoder(48000, 2, OpusApplication.VOIP)
-        self.frame_size = self.encoder.frame_length_to_size(20)
+        self.encoder = OpusEncoder(48000, 2, OpusApplication.AUDIO)
+        self.frame_size = self.encoder.frame_length_to_samples(20)
         self.process = AudioProcessing(self)
         self.files = AsyncFileManager()
+
+        self.encode_avg = RollingAverage(400, 0)
+        self.target_avg = RollingAverage(400, 0)
 
     async def start(self):
         try:
@@ -34,22 +37,24 @@ class AudioManager:
             await self.process.start()
             print("starting playback loop")
             count = 0
-            send_avg = RollingAverage(250, 0)
-            send_avg.add(1)
+            calc_avg = RollingAverage(400, 0)
+            target_avg = RollingAverage(400, 0)
             loop_start = time.time()
             # await self.client.set_speaking_state(False)
             await self.client.set_speaking_state(True)
             while not self.client.is_stopped:
+                start = time.time()
                 pcm = await self.process.prepare()
-                packet = await self.prepare_packet(pcm)
+                packet = None
+                if pcm is not None:
+                    packet = await self.prepare_packet(pcm)
+                    calc_avg.add(time.time() - start)
                 total_offset = (count * 0.02) - (time.time() - loop_start)
                 total_wait = round(0.02 + total_offset, 3)
                 count += 1
                 if count % 250 == 1:
-                    await self.client.set_speaking_state(False)
-                    await self.client.set_speaking_state(True)
                     print("current total offset", time.time() - loop_start,
-                          "waiting for", total_wait, "send avg", send_avg.average())
+                          "avg frame calc time", calc_avg.average(), "send target delta", target_avg.average())
                 if total_wait > 0:
                     try:
                         await asyncio.sleep(total_wait)
@@ -60,9 +65,9 @@ class AudioManager:
                     count = 1
                     loop_start = time.time()
 
-                start = time.time()
-                await self.send_packet(packet)
-                send_avg.add(time.time() - start)
+                if packet:
+                    target_avg.add(abs((count * 0.02) - (time.time() - loop_start)))
+                    await self.send_packet(packet)
 
         except asyncio.CancelledError:
             pass

@@ -1,3 +1,4 @@
+import traceback
 import typing
 import numpy as np
 from numpy import typing as np_typing
@@ -8,7 +9,7 @@ from audio.processing.source import AsyncFFmpegAudio
 from audio.processing.data import AudioFile
 
 if typing.TYPE_CHECKING:
-    from .manager import AudioManager
+    from audio.processing.manager import AudioManager
 
 
 AUDIO_DATA_TYPE = np.dtype("<h")
@@ -26,16 +27,15 @@ class AudioProcessing:
         self.source = AsyncFFmpegAudio(file)
         await self.source.start()
 
-    async def prepare(self) -> np_typing.NDArray[np.int16]:
+    async def prepare(self) -> typing.Optional[np_typing.NDArray[np.int16]]:
         assert self.source is not None
         data = await self.source.read()
         if len(data) == 0:
-            await self.manager.client.stop()
-        return np.frombuffer(data, AUDIO_DATA_TYPE)
-
-
-
-
+            await self.manager.client.graceful_stop()
+        arr = np.frombuffer(data, AUDIO_DATA_TYPE)
+        arr = np.clip(arr, a_min=AUDIO_DATA_TYPE_INFO.min, a_max=AUDIO_DATA_TYPE_INFO.max)
+        arr = arr.astype(np.int16)
+        return arr
 
 
 

@@ -22,4 +22,10 @@ class RollingAverage:
             self.index = 0
 
     def average(self):
-        return self.total_value / self.total_count
+        try:
+            return self.total_value / self.total_count
+        except ZeroDivisionError:
+            return 0
+
+    def __str__(self):
+        return f"{self.average()}"

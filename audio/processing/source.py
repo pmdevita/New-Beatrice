@@ -23,7 +23,7 @@ class AsyncFFmpegAudio:
 
     async def start(self):
         #  '-loglevel', 'quiet',
-        args = ["ffmpeg", "-i", r"E:\pmdevita\Documents\Developer\Python\Discord\Beatrice\assets\test.webm",  # "pipe:0",
+        args = ["ffmpeg", "-i", "pipe:0",
                 "-filter:a", "loudnorm", "-vn",
                 '-f', 's16le', '-ar', '48000', '-ac', '2', "-"]
         self._process = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE,
@@ -54,6 +54,8 @@ class AsyncFFmpegAudio:
                     #     print("Not finished reading but 0 bytes back?")
         except asyncio.exceptions.CancelledError:
             pass
+        except BrokenPipeError:
+            print("The FFmpeg input pipe was closed while we were still using it")
         except:
             traceback.print_exc()
 
@@ -71,13 +73,13 @@ class AsyncFFmpegAudio:
     async def _main_read(self) -> bytes:
         # print("reading next chunk...")
         data = await self._process.stdout.read(3840)
-        # current_time += len(data) / 192 # in milliseconds
         if not data:
             logger.info("Finished reading file, closing")
             await self._process.wait()
             self._process = None
             return bytes(0)
         elif len(data) < 3840:
+            print("Padding pcm data")
             data += bytes(3840 - len(data))  # todo: would be better to do within numpy
         return data
 

@@ -14,6 +14,8 @@ from .test import mp_test
 
 # Create your commands here.
 
+global connection
+
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
 @tanjun.as_message_command("vc")
@@ -30,10 +32,18 @@ async def vc_test(ctx: atsume.Context) -> None:
     assert voice_channel_id is not None
     voice_channel = guild.get_channel(voice_channel_id)
     assert isinstance(voice_channel, hikari.GuildVoiceChannel)
+    global connection
     connection = await voice.connect_to(guild, voice_channel, VoiceConnection)
-    await asyncio.sleep(120)
-    await connection.disconnect()
+    # await asyncio.sleep(120)
+    # await connection.disconnect()
 
+
+@tanjun.annotations.with_annotated_args(follow_wrapped=True)
+@tanjun.as_message_command("dc")
+async def dc_test(ctx: atsume.Context) -> None:
+    global connection
+    if connection:
+        await connection.disconnect()
 
 
 

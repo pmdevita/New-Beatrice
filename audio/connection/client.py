@@ -14,6 +14,7 @@ from hikari import snowflakes
 
 from atsume.bot import initialize_atsume
 
+
 from audio.connection.discord_packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, \
     opcode_1_select, RTPHeader, opcode_5_speaking
 from audio.connection.process_bridge import AbstractCommunicationBridge, TCPSocketBridge
@@ -26,25 +27,23 @@ logging.basicConfig(level=logging.INFO)
 
 def process_runtime(channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake, session_id: str,
                     token: str, user_id: snowflakes.Snowflake,
-                    pipes: typing.Tuple[
-                        multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection],
                     manager_port: int) -> None:
     try:
         settings_module = os.environ["ATSUME_SETTINGS_MODULE"]
         initialize_atsume(settings_module)
-        connection = VoiceConnectionProcess(pipes, channel_id, endpoint, guild_id, session_id, token, user_id, manager_port)
+        connection = VoiceConnectionProcess(channel_id, endpoint, guild_id, session_id, token, user_id, manager_port)
         asyncio.get_event_loop().run_until_complete(connection.start())
+    except KeyboardInterrupt:
+        pass
     except:
         traceback.print_exc()
 
 
 class VoiceConnectionProcess:
-    def __init__(self, pipes: typing.Tuple[
-        multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection],
+    def __init__(self,
                  channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake,
                  session_id: str, token: str, user_id: snowflakes.Snowflake, manager_port: int) -> None:
         # Basic information for the connection
-        self.manager_pipe, self.process_pipe = pipes
         self.manager_connection: AbstractCommunicationBridge = TCPSocketBridge(port=manager_port)
         self.gateway: typing.Optional[aiohttp.ClientWebSocketResponse] = None
         self.voice_socket: typing.Optional[asyncio_dgram.DatagramClient] = None
@@ -186,6 +185,14 @@ class VoiceConnectionProcess:
         except:
             traceback.print_exc()
 
+    async def graceful_stop(self):
+        if self.gateway:
+            logger.info("Trying to cancel the gateway websocket...")
+            await self.gateway.close(code=4000, message=b"")
+            logger.info("Sent close request!")
+        else:
+            await self.stop()
+
     async def set_speaking_state(self, state: bool):
         print("pls speak", opcode_5_speaking(self.ssrc, microphone=state))
         await self.gateway.send_str(opcode_5_speaking(self.ssrc, microphone=state))
@@ -204,12 +211,7 @@ class VoiceConnectionProcess:
                     # The gateway just hates if you don't handle its closing and listen for its events,
                     # so we request to close it if possible instead.
                     # This then hangs this task I'm pretty sure ugh
-                    if self.gateway:
-                        logger.info("Trying to cancel the gateway websocket...")
-                        await self.gateway.close(code=4000, message=b"")
-                        logger.info("Sent close request!")
-                    else:
-                        await self.stop()
+                    await self.graceful_stop()
         except asyncio.CancelledError:
             pass
         except:

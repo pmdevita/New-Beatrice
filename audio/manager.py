@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 _job_end_tasks: set[asyncio.Task] = set()
 
 MANAGER_PORT = 12121
+multiprocessing.set_start_method("spawn")
 
 
 def start_background_task(coro: typing.Awaitable[typing.Any]) -> None:
@@ -73,13 +74,11 @@ manager = VoiceManager()
 class VoiceConnection(AbstractVoiceConnection):
     _POOL = concurrent.futures.ProcessPoolExecutor()
 
-    def __init__(self, pipes: typing.Tuple[
-        multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection],
+    def __init__(self,
                  job: asyncio.Future, on_close: typing.Callable[["VoiceConnection"], typing.Awaitable[None]],
                  channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake,
                  owner: VoiceComponent, session_id: str, shard_id: int, token: str,
                  user_id: snowflakes.Snowflake) -> None:
-        self.manager_pipe, self.process_pipe = pipes
         self.job = job
         self.close_callback = on_close
 
@@ -125,13 +124,11 @@ class VoiceConnection(AbstractVoiceConnection):
                          session_id: str, shard_id: int, token: str, user_id: snowflakes.Snowflake,
                          **kwargs: typing.Any) -> Self:
         loop = asyncio.get_running_loop()
-        pipes: typing.Tuple[
-            multiprocessing.connection.PipeConnection, multiprocessing.connection.PipeConnection] = multiprocessing.Pipe(
-            True)
         await manager.start_server()
+
         job: asyncio.Future = loop.run_in_executor(cls._POOL, process_runtime, channel_id, endpoint, guild_id, session_id,
-                                                   token, user_id, pipes, MANAGER_PORT)
-        connection = cls(pipes, job, on_close, channel_id, endpoint, guild_id, owner, session_id, shard_id,
+                                                   token, user_id, MANAGER_PORT)
+        connection = cls(job, on_close, channel_id, endpoint, guild_id, owner, session_id, shard_id,
                          token, user_id)
         await manager.add_listener(guild_id, connection)
         start_background_task(connection.job_end())

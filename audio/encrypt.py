@@ -2,7 +2,8 @@ import nacl.secret
 import nacl.utils
 
 ENCRYPT_MODES = ["xsalsa20_poly1305", "xsalsa20_poly1305_suffix"]
-#  "xsalsa20_poly1305_lite",
+#  "xsalsa20_poly1305_lite", "xsalsa20_poly1305_suffix",
+
 
 def select_mode(available_modes: list[str]) -> str:
     valid_modes = set(available_modes).intersection(set(ENCRYPT_MODES))
@@ -10,7 +11,7 @@ def select_mode(available_modes: list[str]) -> str:
 
 
 # With help from Discord.py
-def encrypt_audio(mode: str, secret_key: bytes, header: bytes, data: bytes) -> bytes:
+def encrypt_audio(mode: str, secret_key: bytes, header: bytearray, data: bytes) -> bytes:
     box = nacl.secret.SecretBox(secret_key)
 
     match mode:
