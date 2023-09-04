@@ -1,11 +1,12 @@
 import asyncio
 import traceback
+import typing
 
 _tasks = set()
 
 
-def start_background_task(coro):
-    async def log_exceptions():
+def start_background_task(coro: typing.Awaitable[typing.Any]) -> None:
+    async def log_exceptions() -> None:
         try:
             await coro
         except Exception as e:

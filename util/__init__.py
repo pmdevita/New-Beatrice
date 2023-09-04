@@ -1,7 +1,9 @@
+import typing
+
 from .background_tasks import start_background_task
 
 
-async def send_list(send, data_list):
+async def send_list(send: typing.Callable[[str], typing.Coroutine[typing.Any, typing.Any, typing.Any]], data_list: list[str]) -> None:
     message = "```\n"
     column_counter = 0
     row = ""
