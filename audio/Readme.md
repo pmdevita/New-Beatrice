@@ -11,6 +11,3 @@ same multi-channel audio system as the original and some performance improvement
 error prone now that everything is statically typed. Hopefully, this will be compilable
 to C in the future with the mypyc compiler.
 
-My hope is that this provides more flexibility, extensibility, and ease of start up 
-and use than competing options.
-
