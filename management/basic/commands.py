@@ -16,14 +16,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 from tanjun.annotations import Member, User, Positional
 
-DIABETES = re.compile("my family history has (\w+)", re.I)
-SOCK_DRAWER = re.compile("there\'?s nothing happening", re.I)
+DIABETES = re.compile("my family history has (\\w+)", re.I)
+SOCK_DRAWER = re.compile("there\\'?s nothing happening", re.I)
 
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
 @tanjun.as_message_command("hi", "hello", "hey", "howdy", "beatrice", "beako", "betty")
 @tanjun.as_slash_command("hi", "Beatrice says hi")
-async def hello(ctx: tanjun.abc.Context,
+async def hello(ctx: atsume.Context,
                 member: Annotated[Optional[Member], "The user to say hi to.", Positional()] = None
                 ):
     member = member if member else ctx.member
@@ -58,6 +58,8 @@ async def ban(ctx: tanjun.abc.Context, member: Annotated[User, "User to ban"]):
 
 @atsume.with_listener
 async def on_message(message: hikari.events.MessageCreateEvent):
+    if not message.content:
+        return
     result = DIABETES.findall(message.content)
     if result:
         await (await message.message.fetch_channel()).send(f"(There is {result[0].lower()} in my family history)")
