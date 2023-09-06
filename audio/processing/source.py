@@ -1,6 +1,4 @@
-import array
 import asyncio
-import ctypes
 import io
 import logging
 import signal
@@ -13,25 +11,24 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncFFmpegAudio:
-    def __init__(self, source: AsyncFile):
+    def __init__(self, source: AsyncFile) -> None:
         self._source = source
         self._process: typing.Optional[asyncio.subprocess.Process] = None
         self._buffer = io.BytesIO()
-        self.read_task = None
+        self.read_task: typing.Optional[asyncio.Task] = None
         self.pause_lock = None
-        self.read = self._start_read
+        self.read: typing.Callable[[int], typing.Coroutine[typing.Any, typing.Any, bytes]] = self._start_read
 
-    async def start(self):
-        #  '-loglevel', 'quiet',
-        args = ["ffmpeg", "-i", "pipe:0",
+    async def start(self) -> None:
+        args = ["ffmpeg", "-i", "pipe:0", '-loglevel', 'quiet',
                 "-filter:a", "loudnorm", "-vn",
                 '-f', 's16le', '-ar', '48000', '-ac', '2', "-"]
         self._process = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE,
                                                              stdin=asyncio.subprocess.PIPE,
                                                              start_new_session=True)
-        self.read_task = asyncio.ensure_future(self._read_task())
+        self.read_task = asyncio.Task(self._read_task())
 
-    async def _read_task(self):
+    async def _read_task(self) -> None:
         logger.info(f"Starting pipe from AsyncFile to FFmpeg {self._source}")
         chunk_size = 1024 * 5
         try:
@@ -59,28 +56,33 @@ class AsyncFFmpegAudio:
         except:
             traceback.print_exc()
 
-    async def _start_read(self) -> bytes:
+    async def _start_read(self, size: int = 3840) -> bytes:
         try:
-            if len(self._process.stdout._buffer) < 3840 and self._process.returncode is None:
-                return bytes(3840)
+            assert self._process is not None
+            if len(self._process.stdout._buffer) < size and self._process.returncode is None:
+                return bytes(size)
             logger.info("File read started, swapping to read it")
             self.read = self._main_read
             return await self.read()
-        except AttributeError:
+        except AttributeError as e:
             if self._process is None:
                 raise Exception(f"There was an attempt to read a {self.__class__.__name__} without starting it first.")
+            else:
+                raise e
 
-    async def _main_read(self) -> bytes:
+    async def _main_read(self, size: int = 3840) -> bytes:
         # print("reading next chunk...")
-        data = await self._process.stdout.read(3840)
+        assert self._process is not None
+        assert self._process.stdout is not None
+        data = await self._process.stdout.read(size)
         if not data:
             logger.info("Finished reading file, closing")
             await self._process.wait()
             self._process = None
             return bytes(0)
-        elif len(data) < 3840:
+        elif len(data) < size:
             print("Padding pcm data")
-            data += bytes(3840 - len(data))  # todo: would be better to do within numpy
+            data += bytes(size - len(data))  # todo: would be better to do within numpy
         return data
 
     async def pause(self):
@@ -96,7 +98,7 @@ class AsyncFFmpegAudio:
             self.pause_lock = None
         self._send_signal_to_task(self._process.pid, signal.SIGCONT)
 
-    def _send_signal_to_task(self, pid, signal):
+    def _send_signal_to_task(self, pid: int, signal: int) -> None:
         try:
             # gpid = os.getpgid(pid)  # WARNING This does not work
             gpid = pid  # But this does!
@@ -104,10 +106,10 @@ class AsyncFFmpegAudio:
             # os.kill(gpid, signal)
             os.killpg(pid, signal)
         except:
-            print(traceback.format_exc())
+            traceback.print_exc()
         # print("Done!")
 
-    def _end_process(self):
+    def _end_process(self) -> None:
         if self._process:
             try:
                 print("Terminating...")

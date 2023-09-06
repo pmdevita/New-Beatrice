@@ -132,7 +132,7 @@ class VoiceConnectionProcess:
 
         # Once we receive Opcode 4 with the secret key we can continue
         await self._audio_ready.wait()
-        self._audio_task = asyncio.Task(self.audio.start())
+        self._audio_task = asyncio.Task(self.audio.playback_task())
 
         # Wait until we receive the stop event, which only fires after clean up completes
         await self._stop_event.wait()

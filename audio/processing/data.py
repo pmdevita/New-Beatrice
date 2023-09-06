@@ -39,3 +39,15 @@ class AudioFile:
     @property
     def id(self):
         return self._id
+
+
+@dataclasses.dataclass
+class AudioChannelConfig:
+    name: str
+    priority: int = 5
+
+
+@dataclasses.dataclass
+class AudioConfig:
+    channels: list[AudioChannelConfig]
+

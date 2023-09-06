@@ -11,7 +11,9 @@ from audio.processing.async_file import AsyncFileManager
 from audio.processing.stats import RollingAverage
 from audio.encrypt import encrypt_audio
 from audio.opus import OpusEncoder, OpusApplication
-from audio.processing.process import AudioProcessing
+from audio.processing.process import AudioPipeline
+from audio.processing.data import AudioConfig, AudioChannelConfig
+from audio.processing.events import Event
 
 if typing.TYPE_CHECKING:
     from ..connection.client import VoiceConnectionProcess
@@ -25,13 +27,16 @@ class AudioManager:
         self.client = client
         self.encoder = OpusEncoder(48000, 2, OpusApplication.AUDIO)
         self.frame_size = self.encoder.frame_length_to_samples(20)
-        self.process = AudioProcessing(self)
+        self.config = AudioConfig([AudioChannelConfig("music", 2), AudioChannelConfig("sfx", 1)])
+        self.process = AudioPipeline(self, self.config)
         self.files = AsyncFileManager()
 
         self.encode_avg = RollingAverage(400, 0)
         self.target_avg = RollingAverage(400, 0)
+        self._playback_task: typing.Optional[asyncio.Task] = None
+        self._playback_task_running = False
 
-    async def start(self):
+    async def playback_task(self):
         try:
             logger.info("Starting audio manager")
             await self.process.start()
@@ -42,9 +47,9 @@ class AudioManager:
             loop_start = time.time()
             # await self.client.set_speaking_state(False)
             await self.client.set_speaking_state(True)
-            while not self.client.is_stopped:
+            while not self.client.is_stopped and self._playback_task_running:
                 start = time.time()
-                pcm = await self.process.prepare()
+                pcm = await self.process.read()
                 packet = None
                 if pcm is not None:
                     packet = await self.prepare_packet(pcm)
@@ -80,8 +85,30 @@ class AudioManager:
         return encrypted
 
     async def send_packet(self, packet: bytes) -> None:
+        assert self.client.voice_socket is not None
         await self.client.voice_socket.send(packet)
 
     async def _encrypt_audio(self, opus_frame: bytes) -> bytes:
         return encrypt_audio(self.client.encrypt_mode, self.client.secret_key,
                              self.client.rtp_header.get_next_header(), opus_frame)
+
+    async def start(self):
+        if not self._playback_task:
+            self._playback_task_running = True
+            self._playback_task = asyncio.Task(self.playback_task())
+
+    async def stop(self):
+        if self._playback_task:
+            # Attempt to end it gracefully
+            self._playback_task_running = False
+            try:
+                await asyncio.wait_for(self._playback_task, 5)
+            except TimeoutError:
+                # Just cancel it then
+                self._playback_task.cancel()
+
+
+
+
+    async def send_event(self, event: Event):
+        pass
