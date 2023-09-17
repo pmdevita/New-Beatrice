@@ -1,8 +1,6 @@
 import numpy as np
 import numpy.typing as np_typing
-from audio.processing.np_types import AUDIO_DATA_TYPE
-
-SAMPLES_PER_SECOND = 48000
+from audio.processing.constants import AUDIO_DATA_TYPE, SAMPLE_RATE
 
 
 class VolumeAutomation:
@@ -10,7 +8,7 @@ class VolumeAutomation:
         self.channel = channel
         self.from_target = from_target
         self.to_target = to_target
-        self.samples = seconds * SAMPLES_PER_SECOND
+        self.samples = seconds * SAMPLE_RATE
         self.current = 0
 
     def is_automating(self) -> bool:

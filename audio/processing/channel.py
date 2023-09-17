@@ -5,16 +5,16 @@ from numpy import typing as np_typing
 
 from audio.processing.automation import VolumeAutomation
 from audio.processing.data import AudioFile
-from audio.processing.events import AudioChannelEndAutomationEvent, AudioChannelEndEvent, AudioChannelNextEvent, AudioChannelPlayEvent
+from audio.processing.events import AudioChannelEndAutomationEvent, AudioChannelEndEvent, AudioChannelNextEvent, AudioChannelStartEvent
 from audio.processing.source import AsyncFFmpegAudio
-from audio.processing.np_types import AUDIO_DATA_TYPE
+from audio.processing.constants import AUDIO_DATA_TYPE
 
 if typing.TYPE_CHECKING:
     from audio.processing.process import AudioPipeline
 
 
 class AudioChannel:
-    def __init__(self, pipeline: AudioPipeline, name: str) -> None:
+    def __init__(self, pipeline: "AudioPipeline", name: str) -> None:
         self.pipeline = pipeline
         self.name = name
         self._queue: list[AudioFile] = []
@@ -106,7 +106,7 @@ class AudioChannel:
         await async_file.open()
         self.source = AsyncFFmpegAudio(async_file)
         await self.source.start()
-        await self.pipeline.manager.send_event(AudioChannelPlayEvent(self.name, self._queue[0]))
+        await self.pipeline.manager.send_event(AudioChannelStartEvent(self.name, self._queue[0]))
 
     async def pause(self):
         if self.source:

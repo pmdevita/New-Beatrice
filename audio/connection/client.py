@@ -20,6 +20,7 @@ from audio.connection.discord_packet import request_ip, opcode_0_identify, get_i
 from audio.connection.process_bridge import AbstractCommunicationBridge, TCPSocketBridge
 from audio.encrypt import select_mode
 from audio.processing.manager import AudioManager
+from audio.utils.background_tasks import BackgroundTasks
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -39,10 +40,10 @@ def process_runtime(channel_id: snowflakes.Snowflake, endpoint: str, guild_id: s
         traceback.print_exc()
 
 
-class VoiceConnectionProcess:
-    def __init__(self,
-                 channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake,
-                 session_id: str, token: str, user_id: snowflakes.Snowflake, manager_port: int) -> None:
+class VoiceConnectionProcess(BackgroundTasks):
+    def __init__(self, channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake, session_id: str,
+                 token: str, user_id: snowflakes.Snowflake, manager_port: int, *args, **kwargs) -> None:
+        super().__init__()
         # Basic information for the connection
         self.manager_connection: AbstractCommunicationBridge = TCPSocketBridge(port=manager_port)
         self.gateway: typing.Optional[aiohttp.ClientWebSocketResponse] = None
@@ -88,7 +89,7 @@ class VoiceConnectionProcess:
         self._audio_task: typing.Optional[asyncio.Task] = None
 
     async def start(self) -> None:
-        # self._process_pipe_task = asyncio.Task(self.process_pipe_task())
+        # Connect back to the main bot
         await self.manager_connection.open()
         await self.manager_connection.write(str(self.guild_id).encode())
         self._manager_pipe_task = asyncio.Task(self.manager_pipe_task())
@@ -137,10 +138,6 @@ class VoiceConnectionProcess:
         # Wait until we receive the stop event, which only fires after clean up completes
         await self._stop_event.wait()
         logger.info(f"Terminating event loop for {self.guild_id}")
-        # await asyncio.sleep(10)
-        # print("ending...")
-        # await self.stop()
-        # print('end')
 
     async def stop(self) -> None:
         try:
@@ -166,7 +163,7 @@ class VoiceConnectionProcess:
                 self._heartbeat_task = None
             if self.session:
                 if not self.session.closed:
-                    # I don't know why this error happens but it complains if we don't end the session
+                    # I don't know why this error happens, but it complains if we don't end the session
                     try:
                         await self.session.close()
                     except asyncio.CancelledError:
@@ -186,6 +183,7 @@ class VoiceConnectionProcess:
             traceback.print_exc()
 
     async def graceful_stop(self):
+        await self.audio.stop()
         if self.gateway:
             logger.info("Trying to cancel the gateway websocket...")
             await self.gateway.close(code=4000, message=b"")
@@ -212,6 +210,8 @@ class VoiceConnectionProcess:
                     # so we request to close it if possible instead.
                     # This then hangs this task I'm pretty sure ugh
                     await self.graceful_stop()
+                else:
+                    self.start_background_task(self.audio.receive_api(string))
         except asyncio.CancelledError:
             pass
         except:

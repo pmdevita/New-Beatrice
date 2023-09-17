@@ -16,6 +16,8 @@ from hikari.api import VoiceConnection as AbstractVoiceConnection, VoiceComponen
 
 from audio.connection.client import VoiceConnectionProcess, process_runtime
 from audio.connection.process_bridge import TCPSocketBridge, AbstractCommunicationBridge
+from audio.processing.data import AudioFile
+from audio.processing.json import json
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,7 @@ class VoiceConnection(AbstractVoiceConnection):
 
         self.client_connection: typing.Optional[AbstractCommunicationBridge] = None
         self._client_task: typing.Optional[asyncio.Task] = None
+        self._client_connected = asyncio.Event()
 
     async def job_end(self) -> None:
         """Here we wait for the coprocess to end. This should be the main way of exiting the connection."""
@@ -136,6 +139,7 @@ class VoiceConnection(AbstractVoiceConnection):
 
     async def _set_connection(self, connection: AbstractCommunicationBridge) -> None:
         self.client_connection = connection
+        self._client_connected.set()
 
     async def client_task(self) -> None:
         try:
@@ -174,5 +178,22 @@ class VoiceConnection(AbstractVoiceConnection):
     async def join(self) -> None:
         pass
 
+    async def _set_message(self, data: dict):
+        if not self.client_connection:
+            await self._client_connected.wait()
+        await self.client_connection.write(json.dumps(data))
+
     async def notify(self, event: voice_events.VoiceEvent) -> None:
         pass
+
+    async def play(self, channel: str):
+        await self._set_message({"command": "play", "channel": channel})
+
+    async def pause(self, channel: str):
+        await self._set_message({"command": "pause", "channel": channel})
+
+    async def queue(self, channel: str, file: AudioFile):
+        await self._set_message({"command": "queue", "channel": channel, "audio": file.as_dict()})
+
+
+

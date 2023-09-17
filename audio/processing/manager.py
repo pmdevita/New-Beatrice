@@ -14,6 +14,7 @@ from audio.opus import OpusEncoder, OpusApplication
 from audio.processing.process import AudioPipeline
 from audio.processing.data import AudioConfig, AudioChannelConfig
 from audio.processing.events import Event
+from audio.processing.api_client import APIClient
 
 if typing.TYPE_CHECKING:
     from ..connection.client import VoiceConnectionProcess
@@ -30,6 +31,7 @@ class AudioManager:
         self.config = AudioConfig([AudioChannelConfig("music", 2), AudioChannelConfig("sfx", 1)])
         self.process = AudioPipeline(self, self.config)
         self.files = AsyncFileManager()
+        self.api_client = APIClient(self)
 
         self.encode_avg = RollingAverage(400, 0)
         self.target_avg = RollingAverage(400, 0)
@@ -38,7 +40,8 @@ class AudioManager:
 
     async def playback_task(self):
         try:
-            logger.info("Starting audio manager")
+            logger.info("Starting AudioManager playback task")
+            self._playback_task_running = True
             await self.process.start()
             print("starting playback loop")
             count = 0
@@ -78,6 +81,7 @@ class AudioManager:
             pass
         except:
             traceback.print_exc()
+        logger.info("Exiting AudioManager playback task")
 
     async def prepare_packet(self, pcm: np_typing.NDArray[np.int16]) -> bytes:
         opus_frame = self.encoder.encode_numpy(pcm, self.frame_size)
@@ -107,8 +111,8 @@ class AudioManager:
                 # Just cancel it then
                 self._playback_task.cancel()
 
-
-
+    async def receive_api(self, message: str) -> None:
+        await self.api_client.receive_api(message)
 
     async def send_event(self, event: Event):
         pass

@@ -9,7 +9,7 @@ from audio.processing.source import AsyncFFmpegAudio
 from audio.processing.data import AudioConfig, AudioFile
 from audio.processing.events import *
 from audio.processing.channel import AudioChannel
-from audio.processing.np_types import AUDIO_DATA_TYPE, AUDIO_DATA_TYPE_INFO
+from audio.processing.constants import AUDIO_DATA_TYPE_INFO
 
 if typing.TYPE_CHECKING:
     from audio.processing.manager import AudioManager
@@ -53,7 +53,7 @@ class AudioPipeline:
         # Await reads on all channels
         channel_reads = [channel.read(size) for channel in self.channels.values()]
         await_data = await asyncio.gather(*channel_reads)
-        audio_data = [data for data in await_data if data]
+        audio_data = [data for data in await_data if data is not None]
 
         # If we don't have audio data, don't return anything
         if not audio_data:

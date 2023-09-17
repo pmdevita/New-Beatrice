@@ -5,10 +5,12 @@ import hikari
 import tanjun
 import atsume
 
+from atsume.settings import settings
 from typing import Annotated, Optional
 from tanjun.annotations import Member, Positional
 
 from audio.manager import VoiceConnection
+from audio.processing.data import AudioFile
 from .test import mp_test
 
 
@@ -34,6 +36,8 @@ async def vc_test(ctx: atsume.Context) -> None:
     assert isinstance(voice_channel, hikari.GuildVoiceChannel)
     global connection
     connection = await voice.connect_to(guild, voice_channel, VoiceConnection)
+    await connection.queue("music", AudioFile(str(settings.BASE_PATH / "assets" / "test.webm")))
+    await connection.play("music")
     # await asyncio.sleep(120)
     # await connection.disconnect()
 

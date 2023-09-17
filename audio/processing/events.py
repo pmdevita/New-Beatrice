@@ -3,6 +3,7 @@ import typing
 
 from .data import AudioFile
 
+
 @dataclasses.dataclass
 class Event:
     pass
@@ -29,7 +30,7 @@ class AudioChannelEndAutomationEvent(Event):
 
 
 @dataclasses.dataclass
-class AudioChannelPlayEvent(Event):
+class AudioChannelStartEvent(Event):
     """An AudioChannel has started playback of an AudioFile"""
     channel_name: str
     audio_file: AudioFile

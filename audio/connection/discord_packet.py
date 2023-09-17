@@ -2,7 +2,6 @@ import json
 import struct
 import time
 import typing
-from rtp import RTP, Extension, PayloadType
 
 # Todo: Replace JSON dumping with f-string templates?
 # Technically is cheating but would be way faster
