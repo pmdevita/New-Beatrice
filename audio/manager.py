@@ -17,6 +17,7 @@ from hikari.api import VoiceConnection as AbstractVoiceConnection, VoiceComponen
 from audio.connection.client import VoiceConnectionProcess, process_runtime
 from audio.connection.process_bridge import TCPSocketBridge, AbstractCommunicationBridge
 from audio.processing.data import AudioFile
+from audio.utils.background_tasks import BackgroundTasks
 from audio.processing.json import json
 
 logger = logging.getLogger(__name__)
@@ -73,14 +74,13 @@ class VoiceManager:
 manager = VoiceManager()
 
 
-class VoiceConnection(AbstractVoiceConnection):
+class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
     _POOL = concurrent.futures.ProcessPoolExecutor()
 
-    def __init__(self,
-                 job: asyncio.Future, on_close: typing.Callable[["VoiceConnection"], typing.Awaitable[None]],
-                 channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake,
-                 owner: VoiceComponent, session_id: str, shard_id: int, token: str,
-                 user_id: snowflakes.Snowflake) -> None:
+    def __init__(self, job: asyncio.Future, on_close: typing.Callable[["VoiceConnection"], typing.Awaitable[None]],
+                 channel_id: snowflakes.Snowflake, endpoint: str, guild_id: snowflakes.Snowflake, owner: VoiceComponent,
+                 session_id: str, shard_id: int, token: str, user_id: snowflakes.Snowflake) -> None:
+        super().__init__()
         self.job = job
         self.close_callback = on_close
 
@@ -94,6 +94,15 @@ class VoiceConnection(AbstractVoiceConnection):
         self.client_connection: typing.Optional[AbstractCommunicationBridge] = None
         self._client_task: typing.Optional[asyncio.Task] = None
         self._client_connected = asyncio.Event()
+
+        self._id = 1
+        self._events: dict[int, list[asyncio.Future]] = {}
+        self._loop = asyncio.get_running_loop()
+
+    def _get_id(self):
+        id = self._id
+        self._id += 1
+        return id
 
     async def job_end(self) -> None:
         """Here we wait for the coprocess to end. This should be the main way of exiting the connection."""
@@ -139,13 +148,17 @@ class VoiceConnection(AbstractVoiceConnection):
 
     async def _set_connection(self, connection: AbstractCommunicationBridge) -> None:
         self.client_connection = connection
+        self._client_task = asyncio.Task(self.client_task())
         self._client_connected.set()
 
     async def client_task(self) -> None:
         try:
             while self._is_alive and self.client_connection:
                 data = await self.client_connection.read()
-                print("received on bot side", data.decode())
+                print("bot got", data)
+                j = json.loads(data.decode())
+                if j.get("id", None):
+                    await self.fire_id_event(j)
         except asyncio.CancelledError:
             pass
         except:
@@ -178,22 +191,42 @@ class VoiceConnection(AbstractVoiceConnection):
     async def join(self) -> None:
         pass
 
-    async def _set_message(self, data: dict):
+    async def _send_message(self, data: dict):
         if not self.client_connection:
             await self._client_connected.wait()
         await self.client_connection.write(json.dumps(data))
+
+    async def await_event(self, id: int) -> typing.Any:
+        fut = self._loop.create_future()
+        if self._events.get(id, None):
+            self._events[id].append(fut)
+        else:
+            self._events[id] = [fut]
+        return await fut
+
+    async def fire_id_event(self, message: typing.Any) -> None:
+        id = message["id"]
+        futures = self._events.get(id, [])
+        for fut in futures:
+            fut.set_result(message)
 
     async def notify(self, event: voice_events.VoiceEvent) -> None:
         pass
 
     async def play(self, channel: str):
-        await self._set_message({"command": "play", "channel": channel})
+        await self._send_message({"command": "play", "channel": channel})
 
     async def pause(self, channel: str):
-        await self._set_message({"command": "pause", "channel": channel})
+        await self._send_message({"command": "pause", "channel": channel})
 
     async def queue(self, channel: str, file: AudioFile):
-        await self._set_message({"command": "queue", "channel": channel, "audio": file.as_dict()})
+        await self._send_message({"command": "queue", "channel": channel, "audio": file.as_dict()})
+
+    async def is_playing(self, channel: str):
+        id = self._get_id()
+        await self._send_message({"command": "is_playing", "channel": channel, "id": id})
+        result = await self.await_event(id)
+        return result["state"]
 
 
 

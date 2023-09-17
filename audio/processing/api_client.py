@@ -19,16 +19,28 @@ class APIClient:
         except json.JSONDecodeError:
             logger.error(f"Audio API message was unable to be decoded! {message}")
             return
-        match data["command"]:
-            case "play":
-                await self.manager.process.play(data["channel"])
-            case "pause":
-                await self.manager.process.pause(data["channel"])
-            case "queue":
-                audio_file = AudioFile(**data["audio"])
-                audio_file.async_file = await self.manager.files.open(audio_file)
-                await self.manager.process.queue(data["channel"], audio_file)
-            case "stop":
-                await self.manager.client.graceful_stop()
-
-
+        try:
+            match data["command"]:
+                case "play":
+                    await self.manager.process.play(data["channel"])
+                case "pause":
+                    await self.manager.process.pause(data["channel"])
+                case "queue":
+                    audio_file = AudioFile(**data["audio"])
+                    audio_file.async_file = await self.manager.files.open(audio_file)
+                    await self.manager.process.queue(data["channel"], audio_file)
+                case "stop":
+                    await self.manager.client.graceful_stop()
+                case "is_playing":
+                    await self.manager.client.manager_connection.write(
+                        json.dumps({
+                            "command": "is_playing",
+                            "id": data["id"],
+                            "state": self.manager.process.channels[data["channel"]].is_playing()
+                        })
+                    )
+                case _:
+                    logger.error(f"Unknown command \"{data['command']}\"")
+        except KeyError as e:
+            args = "\", \"".join(e.args)
+            logger.error(f"Command \"{data['command']}\" missing properties \"{args}\"")

@@ -129,8 +129,6 @@ class VoiceConnectionProcess(BackgroundTasks):
         assert self.public_ip is not None and self.public_port is not None and self.encrypt_mode is not None
         await self.gateway.send_str(opcode_1_select(self.public_ip, self.public_port, self.encrypt_mode))
 
-        await self.manager_connection.write("done!".encode())
-
         # Once we receive Opcode 4 with the secret key we can continue
         await self._audio_ready.wait()
         self._audio_task = asyncio.Task(self.audio.playback_task())
