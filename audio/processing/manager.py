@@ -115,4 +115,4 @@ class AudioManager:
         await self.api_client.receive_api(message)
 
     async def send_event(self, event: Event):
-        pass
+        await self.api_client.send_event(event)

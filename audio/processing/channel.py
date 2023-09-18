@@ -38,9 +38,12 @@ class AudioChannel:
             return None
 
         data = await self.source.read(size)
+        should_shift = False
         if not data:
             return None
-
+        if len(data) < size:
+            should_shift = True
+            data += bytes(size - len(data))
         arr = np.frombuffer(data, dtype=AUDIO_DATA_TYPE)
         if self.automation:
             automation, keep_automating = self.automation.read(size)
@@ -52,6 +55,10 @@ class AudioChannel:
                 await self.pipeline.manager.send_event(AudioChannelEndAutomationEvent(self.name))
         elif self.volume != 1:
             arr = (arr * self.volume).astype(np.int16)
+
+        if should_shift:
+            await self.shift()
+
         return arr
 
     async def shift(self) -> None:
@@ -63,11 +70,11 @@ class AudioChannel:
             self.source = None
         if not self._queue:
             return
-        await self.pipeline.manager.send_event(AudioChannelEndEvent(self.name, self._queue[0]))
+        await self.pipeline.manager.send_event(AudioChannelEndEvent(self.name, self._queue[0].id))
         self._queue.pop(0)
         if not self._queue:
             return
-        await self.pipeline.manager.send_event(AudioChannelNextEvent(self.name, self._queue[0]))
+        await self.pipeline.manager.send_event(AudioChannelNextEvent(self.name, self._queue[0].id))
 
     def is_playing(self):
         """Is this channel currently playing?"""
@@ -106,7 +113,7 @@ class AudioChannel:
         await async_file.open()
         self.source = AsyncFFmpegAudio(async_file)
         await self.source.start()
-        await self.pipeline.manager.send_event(AudioChannelStartEvent(self.name, self._queue[0]))
+        await self.pipeline.manager.send_event(AudioChannelStartEvent(self.name, self._queue[0].id))
 
     async def pause(self):
         if self.source:

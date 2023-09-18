@@ -80,9 +80,6 @@ class AsyncFFmpegAudio:
             await self._process.wait()
             self._process = None
             return bytes(0)
-        elif len(data) < size:
-            print("Padding pcm data")
-            data += bytes(size - len(data))  # todo: would be better to do within numpy
         return data
 
     async def pause(self):

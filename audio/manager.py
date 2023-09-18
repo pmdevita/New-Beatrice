@@ -19,6 +19,7 @@ from audio.connection.process_bridge import TCPSocketBridge, AbstractCommunicati
 from audio.processing.data import AudioFile
 from audio.utils.background_tasks import BackgroundTasks
 from audio.processing.json import json
+from audio.processing import events
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +27,6 @@ _job_end_tasks: set[asyncio.Task] = set()
 
 MANAGER_PORT = 12121
 multiprocessing.set_start_method("spawn")
-
-
-def start_background_task(coro: typing.Awaitable[typing.Any]) -> None:
-    async def log_exceptions() -> None:
-        try:
-            await coro
-        except Exception as e:
-            traceback.print_exc()
-
-    task = asyncio.create_task(log_exceptions())
-    _job_end_tasks.add(task)
-    task.add_done_callback(_job_end_tasks.discard)
 
 
 class VoiceManager:
@@ -96,7 +85,8 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
         self._client_connected = asyncio.Event()
 
         self._id = 1
-        self._events: dict[int, list[asyncio.Future]] = {}
+        self._callbacks: dict[int, list[asyncio.Future]] = {}
+        self._events: dict[events.Event, list[asyncio.Future]] = {}
         self._loop = asyncio.get_running_loop()
 
     def _get_id(self):
@@ -108,9 +98,9 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
         """Here we wait for the coprocess to end. This should be the main way of exiting the connection."""
         try:
             await self.job
-        except concurrent.futures.process.BrokenProcessPool as e:
+        except concurrent.futures.process.BrokenProcessPool:
             traceback.print_exc()
-            logger.info("Reparing process pool...")
+            logger.info("Repairing process pool...")
             self.__class__._POOL.shutdown()
             self.__class__._POOL = concurrent.futures.ProcessPoolExecutor()
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -143,7 +133,7 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
         connection = cls(job, on_close, channel_id, endpoint, guild_id, owner, session_id, shard_id,
                          token, user_id)
         await manager.add_listener(guild_id, connection)
-        start_background_task(connection.job_end())
+        connection.start_background_task(connection.job_end())
         return connection
 
     async def _set_connection(self, connection: AbstractCommunicationBridge) -> None:
@@ -157,7 +147,9 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
                 data = await self.client_connection.read()
                 print("bot got", data)
                 j = json.loads(data.decode())
-                if j.get("id", None):
+                if j.get("event", None):
+                    await self.fire_event_callback(j)
+                elif j.get("id", None):
                     await self.fire_id_event(j)
         except asyncio.CancelledError:
             pass
@@ -196,19 +188,41 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
             await self._client_connected.wait()
         await self.client_connection.write(json.dumps(data))
 
-    async def await_event(self, id: int) -> typing.Any:
+    async def await_callback(self, id: int) -> typing.Any:
         fut = self._loop.create_future()
-        if self._events.get(id, None):
-            self._events[id].append(fut)
+        if self._callbacks.get(id, None):
+            self._callbacks[id].append(fut)
         else:
-            self._events[id] = [fut]
+            self._callbacks[id] = [fut]
         return await fut
+
+    def await_event(self, event: events.Event) -> asyncio.Future[events.Event]:
+        fut = self._loop.create_future()
+        if self._events.get(event, None):
+            self._events[event].append(fut)
+        else:
+            self._events[event] = [fut]
+        return fut
 
     async def fire_id_event(self, message: typing.Any) -> None:
         id = message["id"]
-        futures = self._events.get(id, [])
+        try:
+            futures = self._callbacks.pop(id)
+        except KeyError:
+            return
         for fut in futures:
             fut.set_result(message)
+
+    async def fire_event_callback(self, message: typing.Any) -> None:
+        event_name = message["event"]
+        message.pop("event")
+        event = events.events[event_name](**message)  # type: ignore
+        try:
+            futures = self._events.pop(event)
+        except KeyError:
+            return
+        for fut in futures:
+            fut.set_result(event)
 
     async def notify(self, event: voice_events.VoiceEvent) -> None:
         pass
@@ -225,8 +239,19 @@ class VoiceConnection(BackgroundTasks, AbstractVoiceConnection):
     async def is_playing(self, channel: str):
         id = self._get_id()
         await self._send_message({"command": "is_playing", "channel": channel, "id": id})
-        result = await self.await_event(id)
+        result = await self.await_callback(id)
         return result["state"]
+
+    async def queue_and_wait(self, channel: str, file: AudioFile):
+        id = self._get_id()
+        data = file.as_dict()
+        data["_id"] = id
+        event = self.await_event(events.AudioChannelStartEvent(channel, id))
+        await self._send_message({"command": "queue", "channel": channel, "audio": data})
+        await self.play(channel)
+        res = await event
+        print("queued and waited complete!", res)
+
 
 
 

@@ -67,7 +67,7 @@ class AsyncFile:
         self.cursor = 0
         self.size = 0
         self.downloaded_file = False  # Has file completely and fully downloaded?
-        self.download_job = None
+        self.download_job: typing.Optional[asyncio.Task] = None
 
         # Read needs to await the download start in order to potentially have data to read
         self.read = self._preload_read

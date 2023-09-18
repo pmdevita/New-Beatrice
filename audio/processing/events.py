@@ -4,35 +4,42 @@ import typing
 from .data import AudioFile
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=True, frozen=True)
 class Event:
-    pass
+    def as_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=True, frozen=True)
 class AudioChannelNextEvent(Event):
     """An AudioChannel has advanced its queue to the next AudioFile"""
     channel_name: str
-    audio_file: typing.Optional[AudioFile]
+    audio_file_id: typing.Optional[int]
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=True, frozen=True)
 class AudioChannelEndEvent(Event):
     """An AudioChannel has ended playback for an AudioFile"""
     channel_name: str
-    audio_file: AudioFile
+    audio_file_id: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=True, frozen=True)
 class AudioChannelEndAutomationEvent(Event):
     """An AudioChannel has ended automation"""
     channel_name: str
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=True, frozen=True)
 class AudioChannelStartEvent(Event):
     """An AudioChannel has started playback of an AudioFile"""
     channel_name: str
-    audio_file: AudioFile
+    audio_file_id: int
 
 
+events: dict[str, typing.Type[Event]] = {
+    "AudioChannelNextEvent": AudioChannelNextEvent,
+    "AudioChannelEndEvent": AudioChannelEndEvent,
+    "AudioChannelEndAutomationEvent": AudioChannelEndAutomationEvent,
+    "AudioChannelStartEvent": AudioChannelStartEvent
+}

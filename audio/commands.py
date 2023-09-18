@@ -37,15 +37,14 @@ async def vc_test(ctx: atsume.Context) -> None:
     assert isinstance(voice_channel, hikari.GuildVoiceChannel)
     global connection
     connection = await voice.connect_to(guild, voice_channel, VoiceConnection)
-    await connection.queue("music", AudioFile(str(settings.BASE_PATH / "assets" / "test.webm")))
-    await connection.play("music")
-    await asyncio.sleep(5)
-    start = time.time()
-    state = await connection.is_playing("music")
-    result = time.time() - start
-    print("isplaying", state, result)
-    # await asyncio.sleep(120)
-    # await connection.disconnect()
+    await connection.queue_and_wait("music", AudioFile(str(settings.BASE_PATH / "assets" / "test.webm")))
+    # await connection.queue("music", AudioFile(str(settings.BASE_PATH / "assets" / "test.webm")))
+    # await connection.play("music")
+    # await asyncio.sleep(5)
+    # start = time.time()
+    # state = await connection.is_playing("music")
+    # result = time.time() - start
+    # print("isplaying", state, result)
 
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
