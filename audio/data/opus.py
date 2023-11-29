@@ -2,7 +2,7 @@ import array
 import typing
 import numpy as np
 import numpy.typing as np_typing
-from audio.libopus._py_opus import ffi, lib # type: ignore
+from .libopus._py_opus import ffi, lib # type: ignore
 import enum
 
 
@@ -66,7 +66,7 @@ class OpusEncoder:
 
         self._output_data = ffi.new(f"unsigned char[{3840 * 2}]")
         if error_code[0] != 0:
-            raise Exception(f"opus_encoder_create error {error_code[0]}")
+            raise Exception(f"OpusEncoderCreate error {error_code[0]}")
 
     def frame_length_to_size(self, frame_length: int) -> int:
         """
@@ -87,35 +87,19 @@ class OpusEncoder:
         return frame_length * self._sample_rate // 1000
 
     def encode_bytes(self, pcm: bytes, frame_size: int) -> bytes:
-        # print([int(i) for i in pcm[:8]])
-        # assert len(pcm) == 3840
         pre_input_data = ffi.new("int16_t[]", len(pcm) // 2)
         ffi.memmove(pre_input_data, pcm, len(pcm))
         input_data = ffi.cast("int16_t *", pre_input_data)
-        # print("my", [int(i) for i in input_data[0:4]])
         output_data = ffi.new(f"char[]", len(pcm))
         packet_length = lib.opus_encode(self._opus_encoder_struct, input_data, frame_size, output_data,
                                         len(pcm))
         assert packet_length >= 0
-        print(frame_size, len(pcm))
-        print(packet_length)
-        if packet_length in ENCODE_ERRORS:
-            print(OpusEncodeError(packet_length))
-
         buffer = ffi.buffer(output_data)
         # return bytes(self._output_data)[0:packet_length]
         return array.array("b", buffer[0:packet_length]).tobytes()
 
     def encode_numpy(self, pcm: np_typing.NDArray[np.int16], frame_size: int) -> bytes:
-        # can we keep this array allocated between encodes?
-        # output_data = ffi.new(f"unsigned char[{frame_size}]")
-        # test_data = ffi.new(f"short[4]")
         input_data = ffi.cast("int16_t *", pcm.ctypes.data)
-        # for i in range(4):
-        #     test_data[i] = input_data[i]
-        #
-        # print("opus data type conversion????", pcm[:4], [int(i) for i in test_data])
-
         packet_length = lib.opus_encode(self._opus_encoder_struct, input_data, frame_size, self._output_data,
                                         frame_size)
         assert packet_length != -1
@@ -126,7 +110,6 @@ class OpusEncoder:
     def set_ctl(self, ctl: OpusEncoderSetCTL, setting: int):
         setting_cdata = ffi.new("int[1]")
         setting_cdata[0] = setting
-        print("new ctl", ctl.value, setting)
         lib.opus_encoder_ctl(self._opus_encoder_struct, ctl.value, setting_cdata)
 
     def close(self):

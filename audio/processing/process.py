@@ -1,15 +1,12 @@
 import asyncio
-import typing
 import numpy as np
 from numpy import typing as np_typing
 
-from atsume.settings import settings
-
 from audio.processing.source import AsyncFFmpegAudio
-from audio.processing.data import AudioConfig, AudioFile
-from audio.processing.events import *
+from audio.data.audio import AudioConfig, AudioFile
+from audio.data.events import *
 from audio.processing.channel import AudioChannel
-from audio.processing.constants import AUDIO_DATA_TYPE_INFO
+from audio.utils.constants import AUDIO_DATA_TYPE_INFO
 
 if typing.TYPE_CHECKING:
     from audio.processing.manager import AudioManager
@@ -22,12 +19,6 @@ class AudioPipeline:
         self.config = config
         self.channels: dict[str, AudioChannel] = {channel.name: AudioChannel(self, channel.name)
                                                   for channel in self.config.channels}
-
-    async def start(self) -> None:
-        file = await self.manager.files.open(AudioFile(settings.BASE_DIR / "assets" / "test.webm"))
-        # file = await self.manager.files.open(AudioFile(settings.BASE_DIR / "assets" / "beatrice_hi1.opus"))
-        self.source = AsyncFFmpegAudio(file)
-        await self.source.start()
 
     async def queue(self, audio_channel: str, audio_file: AudioFile) -> None:
         await self.channels[audio_channel].queue(audio_file)

@@ -4,10 +4,10 @@ import numpy as np
 from numpy import typing as np_typing
 
 from audio.processing.automation import VolumeAutomation
-from audio.processing.data import AudioFile
-from audio.processing.events import AudioChannelEndAutomationEvent, AudioChannelEndEvent, AudioChannelNextEvent, AudioChannelStartEvent
+from audio.data.audio import AudioFile
+from audio.data.events import AudioChannelEndAutomationEvent, AudioChannelEndEvent, AudioChannelNextEvent, AudioChannelStartEvent
 from audio.processing.source import AsyncFFmpegAudio
-from audio.processing.constants import AUDIO_DATA_TYPE
+from audio.utils.constants import AUDIO_DATA_TYPE
 
 if typing.TYPE_CHECKING:
     from audio.processing.process import AudioPipeline
@@ -70,11 +70,12 @@ class AudioChannel:
             self.source = None
         if not self._queue:
             return
-        await self.pipeline.manager.send_event(AudioChannelEndEvent(self.name, self._queue[0].id))
-        self._queue.pop(0)
+        audio_file = self._queue.pop(0)
+        await self.pipeline.manager.send_event(AudioChannelEndEvent(self.name, audio_file.id))
         if not self._queue:
             return
         await self.pipeline.manager.send_event(AudioChannelNextEvent(self.name, self._queue[0].id))
+        await self.play()
 
     def is_playing(self):
         """Is this channel currently playing?"""
@@ -111,8 +112,9 @@ class AudioChannel:
         async_file = audio_file.async_file
         assert async_file is not None
         await async_file.open()
-        self.source = AsyncFFmpegAudio(async_file)
-        await self.source.start()
+        source = AsyncFFmpegAudio(async_file)
+        await source.start()
+        self.source = source
         await self.pipeline.manager.send_event(AudioChannelStartEvent(self.name, self._queue[0].id))
 
     async def pause(self):

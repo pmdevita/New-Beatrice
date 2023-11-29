@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 import aiohttp
 import aiofiles
-from .data import AudioFile
+from audio.data.audio import AudioFile
 from audio.utils.background_tasks import BackgroundTasks
 
 

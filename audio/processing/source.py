@@ -20,13 +20,19 @@ class AsyncFFmpegAudio:
         self.read: typing.Callable[[int], typing.Coroutine[typing.Any, typing.Any, bytes]] = self._start_read
 
     async def start(self) -> None:
+        if self._process:
+            return
+
         args = ["ffmpeg", "-i", "pipe:0", '-loglevel', 'quiet',
                 "-filter:a", "loudnorm", "-vn",
                 '-f', 's16le', '-ar', '48000', '-ac', '2', "-"]
         self._process = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE,
                                                              stdin=asyncio.subprocess.PIPE,
                                                              start_new_session=True)
+        if self._process is None:
+            raise Exception("Oh dear, there's no process, why")
         self.read_task = asyncio.Task(self._read_task())
+        logger.info("Start was called on Audio Source")
 
     async def _read_task(self) -> None:
         logger.info(f"Starting pipe from AsyncFile to FFmpeg {self._source}")
@@ -58,7 +64,8 @@ class AsyncFFmpegAudio:
 
     async def _start_read(self, size: int = 3840) -> bytes:
         try:
-            assert self._process is not None
+            if self._process is None:
+                raise Exception(f"{self.__class__.__name__} tried to read from the FFmpeg process before it started!")
             if len(self._process.stdout._buffer) < size and self._process.returncode is None:
                 return bytes(size)
             logger.info("File read started, swapping to read it")
@@ -109,7 +116,7 @@ class AsyncFFmpegAudio:
     def _end_process(self) -> None:
         if self._process:
             try:
-                print("Terminating...")
+                # print("Terminating...")
                 # IDK why it needs to be killed but terminating doesn't work. Maybe we need to communicate() and read
                 # out all of the data so it can terminate?
                 self._process.kill()

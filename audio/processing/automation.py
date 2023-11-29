@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.typing as np_typing
-from audio.processing.constants import AUDIO_DATA_TYPE, SAMPLE_RATE
+from audio.utils.constants import AUDIO_DATA_TYPE, SAMPLE_RATE
 
 
 class VolumeAutomation:

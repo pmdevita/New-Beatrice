@@ -1,9 +1,7 @@
 import asyncio
 import json
 import logging
-import multiprocessing.connection
 import os
-import struct
 import traceback
 import typing
 
@@ -15,10 +13,10 @@ from hikari import snowflakes
 from atsume.bot import initialize_atsume
 
 
-from audio.connection.discord_packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, \
+from audio.data.discord_packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, \
     opcode_1_select, RTPHeader, opcode_5_speaking
 from audio.connection.process_bridge import AbstractCommunicationBridge, TCPSocketBridge
-from audio.encrypt import select_mode
+from audio.data.encrypt import select_mode
 from audio.processing.manager import AudioManager
 from audio.utils.background_tasks import BackgroundTasks
 
@@ -89,11 +87,6 @@ class VoiceConnectionProcess(BackgroundTasks):
         self._audio_task: typing.Optional[asyncio.Task] = None
 
     async def start(self) -> None:
-        # Connect back to the main bot
-        await self.manager_connection.open()
-        await self.manager_connection.write(str(self.guild_id).encode())
-        self._manager_pipe_task = asyncio.Task(self.manager_pipe_task())
-
         # Start the gateway connection
         logger.info(f"Starting the voice gateway connection to {self.endpoint}...")
         self.gateway = await self.session.ws_connect(f"{self.endpoint}?v=4")
@@ -132,6 +125,11 @@ class VoiceConnectionProcess(BackgroundTasks):
         # Once we receive Opcode 4 with the secret key we can continue
         await self._audio_ready.wait()
         self._audio_task = asyncio.Task(self.audio.playback_task())
+
+        # Connect back to the main bot
+        await self.manager_connection.open()
+        await self.manager_connection.write(str(self.guild_id).encode())
+        self._manager_pipe_task = asyncio.Task(self.manager_pipe_task())
 
         # Wait until we receive the stop event, which only fires after clean up completes
         await self._stop_event.wait()

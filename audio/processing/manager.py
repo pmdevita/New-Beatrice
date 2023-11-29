@@ -8,28 +8,30 @@ import numpy as np
 from numpy import typing as np_typing
 
 from audio.processing.async_file import AsyncFileManager
-from audio.processing.stats import RollingAverage
-from audio.encrypt import encrypt_audio
-from audio.opus import OpusEncoder, OpusApplication
+from audio.utils.stats import RollingAverage
+from audio.data.encrypt import encrypt_audio
+from audio.data.opus import OpusEncoder, OpusApplication
 from audio.processing.process import AudioPipeline
-from audio.processing.data import AudioConfig, AudioChannelConfig
-from audio.processing.events import Event
+from audio.data.audio import AudioConfig, AudioChannelConfig
+from audio.data.events import Event
 from audio.processing.api_client import APIClient
+from audio.utils.background_tasks import BackgroundTasks
+from ..data import events
 
 if typing.TYPE_CHECKING:
     from ..connection.client import VoiceConnectionProcess
 
-
 logger = logging.getLogger(__name__)
 
 
-class AudioManager:
+class AudioManager(BackgroundTasks):
     def __init__(self, client: "VoiceConnectionProcess"):
+        super().__init__()
         self.client = client
         self.encoder = OpusEncoder(48000, 2, OpusApplication.AUDIO)
         self.frame_size = self.encoder.frame_length_to_samples(20)
         self.config = AudioConfig([AudioChannelConfig("music", 2), AudioChannelConfig("sfx", 1)])
-        self.process = AudioPipeline(self, self.config)
+        self.pipeline = AudioPipeline(self, self.config)
         self.files = AsyncFileManager()
         self.api_client = APIClient(self)
 
@@ -37,12 +39,24 @@ class AudioManager:
         self.target_avg = RollingAverage(400, 0)
         self._playback_task: typing.Optional[asyncio.Task] = None
         self._playback_task_running = False
+        self._event_subscriptions: dict[
+            typing.Type[events.Event],
+            list[
+                typing.Callable[[events.Event], typing.Coroutine[None, None, None]]
+            ]
+        ] = {events.AudioChannelEndEvent: [self.check_queues_empty]}
+
+    async def check_queues_empty(self, event: events.Event) -> None:
+        assert isinstance(event, events.AudioChannelEndEvent)
+        for channel in self.pipeline.channels.values():
+            if len(channel._queue) > 0:
+                return
+        await self.send_event(events.AudioPlaybackFinishedEvent())
 
     async def playback_task(self):
         try:
             logger.info("Starting AudioManager playback task")
             self._playback_task_running = True
-            await self.process.start()
             print("starting playback loop")
             count = 0
             calc_avg = RollingAverage(400, 0)
@@ -52,7 +66,7 @@ class AudioManager:
             await self.client.set_speaking_state(True)
             while not self.client.is_stopped and self._playback_task_running:
                 start = time.time()
-                pcm = await self.process.read()
+                pcm = await self.pipeline.read()
                 packet = None
                 if pcm is not None:
                     packet = await self.prepare_packet(pcm)
@@ -115,4 +129,9 @@ class AudioManager:
         await self.api_client.receive_api(message)
 
     async def send_event(self, event: Event):
-        await self.api_client.send_event(event)
+        self.start_background_task(self._dispatch_event(event))
+
+    async def _dispatch_event(self, event: Event):
+        self.start_background_task(self.api_client.send_event(event))
+        for handle in self._event_subscriptions.get(event.__class__, []):
+            self.start_background_task(handle(event))

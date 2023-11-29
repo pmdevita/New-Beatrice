@@ -1,8 +1,8 @@
 import logging
 import typing
-from audio.processing.json import json
-from audio.processing.data import AudioFile
-from audio.processing.events import Event
+from audio.utils.json import json
+from audio.data.audio import AudioFile
+from audio.data.events import Event
 
 if typing.TYPE_CHECKING:
     from audio.processing.manager import AudioManager
@@ -31,13 +31,13 @@ class APIClient:
         try:
             match data["command"]:
                 case "play":
-                    await self.manager.process.play(data["channel"])
+                    await self.manager.pipeline.play(data["channel"])
                 case "pause":
-                    await self.manager.process.pause(data["channel"])
+                    await self.manager.pipeline.pause(data["channel"])
                 case "queue":
                     audio_file = AudioFile(**data["audio"])
                     audio_file.async_file = await self.manager.files.open(audio_file)
-                    await self.manager.process.queue(data["channel"], audio_file)
+                    await self.manager.pipeline.queue(data["channel"], audio_file)
                 case "stop":
                     await self.manager.client.graceful_stop()
                 case "is_playing":
@@ -45,7 +45,7 @@ class APIClient:
                         json.dumps({
                             "command": "is_playing",
                             "id": data["id"],
-                            "state": self.manager.process.channels[data["channel"]].is_playing()
+                            "state": self.manager.pipeline.channels[data["channel"]].is_playing()
                         })
                     )
                 case _:

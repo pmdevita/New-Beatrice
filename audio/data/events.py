@@ -1,8 +1,6 @@
 import dataclasses
 import typing
 
-from .data import AudioFile
-
 
 @dataclasses.dataclass(eq=True, frozen=True)
 class Event:
@@ -37,9 +35,19 @@ class AudioChannelStartEvent(Event):
     audio_file_id: int
 
 
+@dataclasses.dataclass(eq=True, frozen=True)
+class AudioPlaybackFinishedEvent(Event):
+    """Playback of all queued AudioFiles in all AudioChannels has completed.
+
+    Useful to signal termination of the voice client.
+    """
+    pass
+
+
 events: dict[str, typing.Type[Event]] = {
     "AudioChannelNextEvent": AudioChannelNextEvent,
     "AudioChannelEndEvent": AudioChannelEndEvent,
     "AudioChannelEndAutomationEvent": AudioChannelEndAutomationEvent,
-    "AudioChannelStartEvent": AudioChannelStartEvent
+    "AudioChannelStartEvent": AudioChannelStartEvent,
+    "AudioPlaybackFinishedEvent": AudioPlaybackFinishedEvent
 }

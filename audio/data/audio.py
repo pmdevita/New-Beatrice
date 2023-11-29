@@ -3,7 +3,7 @@ import typing
 from pathlib import Path
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .async_file import AsyncFile
+    from audio.processing.async_file import AsyncFile
 
 
 @dataclasses.dataclass
