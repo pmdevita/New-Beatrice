@@ -1,11 +1,16 @@
+import alluka
 import hikari
 import tanjun
 import atsume
 import re
 
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
+
+from hikari import Member
 from tanjun.annotations import Member, Positional, Str
 from random import choice
+
+from tanjun.dependencies import async_cache
 
 from secret_santa.models import *
 
@@ -27,14 +32,39 @@ def shuffle_users(users: list[hikari.User]) -> list[tuple[hikari.User, hikari.Us
     return user_pairings
 
 
-@tanjun.annotations.with_annotated_args(follow_wrapped=True)
+async def parse_members(argument: str, /, ctx: alluka.Injected[tanjun.abc.Context]) -> list[Member]:
+    snowflakes = tanjun.conversion.search_user_ids(argument)
+    members = []
+    guild_id = ctx.guild_id
+    if guild_id is None:
+        raise ValueError("Can't get members if not in guild")
+    for m in snowflakes:
+        if ctx.cache:
+            try:
+                obj = ctx.cache.get_member(guild_id, m)
+                if obj:
+                    members.append(obj)
+                    continue
+            except async_cache.EntryNotFound:
+                raise ValueError("Couldn't find member in this guild")
+
+            except async_cache.CacheMissError:
+                pass
+
+        try:
+            obj = await ctx.rest.fetch_member(guild_id, m)
+            if obj:
+                members.append(obj)
+        except hikari.NotFoundError:
+            raise ValueError("Couldn't find member in this guild")
+    return members
+
+
+@tanjun.with_greedy_argument("users", converters=parse_members)
+@tanjun.parsing.with_parser
 @ss_group.as_sub_command("start")
-async def start_ss(ctx: atsume.Context, user_string: Annotated[Str, "All members involved", Positional()]):
-    user_ids = re.findall("<@(\d*?)>", user_string)
-    users = [await ctx.client.rest.fetch_user(int(id)) for id in user_ids]
-    print(ctx, user_string)
-    print(users, user_ids)
-    pairings = shuffle_users(users)
+async def start_ss(ctx: atsume.Context, users: list[hikari.Member]):
+    pairings = shuffle_users([m.user for m in users])
 
     session = await SecretSantaSession.objects.create(user=ctx.author.id)
     for user, target in pairings:
@@ -42,5 +72,4 @@ async def start_ss(ctx: atsume.Context, user_string: Annotated[Str, "All members
 
     for user, target in pairings:
         await user.send(f"Hey {user.global_name}! For {ctx.author.global_name}'s secret santa group, "
-                        f"your target is {target.mention}! Good luck!")
-
+                        f"you are buying a gift for {target.mention}! Good luck!")
