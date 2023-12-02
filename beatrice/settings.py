@@ -18,20 +18,23 @@ COMPONENTS = [
     # "management.schedule",
     # "splatgear2",
     # "suscallout",
-    "audio"
+    "audio",
+    "secret_santa",
     # "hurricane"
+    # "chatgpt"
 ]
 
-MIDDLEWARE = [
-    "atsume.middleware.aiohttp",
+EXTENSIONS = [
+    "atsume.extensions.aiohttp.hook_aiohttp",
     "util.aiohttp_server.hook_aiohttp_server",
+    "atsume.extensions.timer.hook_extension"
 ]
 
-HIKARI_LOGGING = True
+HIKARI_LOGGING = False
 
 INTENTS = hikari.Intents.ALL_UNPRIVILEGED | hikari.Intents.MESSAGE_CONTENT | hikari.Intents.GUILD_MEMBERS
 
-MESSAGE_PREFIX = None
-
 TIMEZONE = "America/New_York"
+
+VOICE_COMPONENT = "audio.manager.VoiceComponent"
 

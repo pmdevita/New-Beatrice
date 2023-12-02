@@ -21,18 +21,17 @@ from .models import Alarm
 
 @atsume.on_open
 async def on_open(client: alluka.Injected[tanjun.Client], timer: alluka.Injected[Timer], component: atsume.Component):
-    assert client.cache is not None
     for alarm in await Alarm.objects.all():
-        timer.schedule_task(alarm.time, send_message, args=[component, alarm])
+        timer.schedule_task(alarm.time, send_message, args=[client, alarm])
 
 
-async def send_message(component: atsume.Component, alarm: Alarm):
-    assert component.client is not None
-    assert component.client.cache is not None
+async def send_message(client: tanjun.Client, alarm: Alarm) -> None:
+    assert client.cache is not None
+    await client.rest.create_message(alarm.channel, alarm.message)
     channel: hikari.TextableChannel = typing.cast(hikari.TextableChannel,
-                                                  component.client.cache.get_guild_channel(alarm.channel))
+                                                  client.cache.get_guild_channel(alarm.channel))
     if channel is None:
-        user = component.client.cache.get_user(alarm.channel)
+        user = client.cache.get_user(alarm.channel)
         assert user is not None
         channel = await user.fetch_dm_channel()
     await channel.send(alarm.message)
@@ -45,7 +44,7 @@ def date_countdown(date: datetime):
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
 @tanjun.as_message_command("schedule", "sched")
-async def add_alarm_cmd(ctx: atsume.Context, timer: alluka.Injected[Timer],
+async def add_alarm_cmd(ctx: atsume.Context, timer: alluka.Injected[Timer], client: alluka.Client,
                         time_string: Annotated[Str, "When to set the alarm", Positional()],
                         message: Annotated[Optional[Str], "Optional message", Positional()] = None):
     assert ctx.member is not None
@@ -68,7 +67,7 @@ async def add_alarm_cmd(ctx: atsume.Context, timer: alluka.Injected[Timer],
         channel_id = ctx.member.id
 
     alarm = await Alarm.objects.create(channel=channel_id, time=date, message=message)
-    timer.schedule_task(alarm.time, send_message, args=[ctx.component, alarm])
+    timer.schedule_task(alarm.time, send_message, args=[client, alarm])
 
     templates = ["Very well, I set an alarm for {}.", "Why should I have to keep watch for you? ({})", "Hmmph! ({})"]
 
