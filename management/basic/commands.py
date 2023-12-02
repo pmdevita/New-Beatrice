@@ -1,23 +1,25 @@
 import asyncio
-import logging
 from random import choice
 import re
 
-import aiohttp
-import alluka
 import hikari
 import tanjun
 import atsume
 from atsume.settings import settings
 
-from .models import *
+from audio.data.audio import AudioFile
+from audio.host import VoiceComponent
 
-from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 from tanjun.annotations import Member, User, Positional
 
 DIABETES = re.compile("my family history has (\\w+)", re.I)
 SOCK_DRAWER = re.compile("there\\'?s nothing happening", re.I)
+HI_FILES = [
+    ("beatrice_hi1.opus", "You come in here without knocking? What a rude one you are."),
+    ("beatrice_hi2.opus", "You're irritating me to death. Either stop it or get blown away."),
+    ("beatrice_hi3.opus", "You come in here every day without even knocking. You truly have no manners whatsoever.")
+]
 
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
@@ -26,8 +28,16 @@ SOCK_DRAWER = re.compile("there\\'?s nothing happening", re.I)
 async def hello(ctx: atsume.Context,
                 member: Annotated[Optional[Member], "The user to say hi to.", Positional()] = None
                 ):
-    member = member if member else ctx.member
+    member: hikari.Member | hikari.User = member if member else ctx.member
     member = member if member else ctx.author
+    if isinstance(member, hikari.Member) and ctx.voice:
+        guild = member.get_guild()
+        assert guild is not None
+        voice_state = guild.get_voice_state(member)
+        # if voice_state and voice_state.channel_id:
+        #     return await hello_audio(ctx.voice, typing.cast(hikari.GuildTextChannel, ctx.get_channel()),
+        #                              typing.cast(hikari.GuildVoiceChannel, guild.get_channel(voice_state.channel_id)))
+
     name = ""
     if isinstance(member, hikari.Member):
         name = member.display_name
@@ -36,6 +46,16 @@ async def hello(ctx: atsume.Context,
     # Todo: Add audio responses
     templates = ["Hmmmmm... hi {}.", "Yes, yes, hello {}.", "Hi {}, I guess.", "I'm busy right now {}, shoo, shoo!"]
     await ctx.respond(choice(templates).format(name))
+
+
+async def hello_audio(voice: hikari.api.VoiceComponent, text_channel: hikari.GuildTextChannel,
+                      voice_channel: hikari.GuildVoiceChannel):
+    assert isinstance(voice, VoiceComponent)
+    connection = await voice.connect(text_channel.guild_id, voice_channel)
+    print(connection)
+    line = choice(HI_FILES)
+    await connection.queue_and_wait("sfx", AudioFile(str(settings.BASE_DIR / "assets" / line[0])))
+    await text_channel.send(line[1])
 
 
 @tanjun.annotations.with_annotated_args(follow_wrapped=True)
@@ -69,6 +89,5 @@ async def on_message(message: hikari.events.MessageCreateEvent):
             await asyncio.sleep(3)
             await (await message.message.fetch_channel()).send(
                 "I finally got the wildfire in my sock drawer under control!")
-
 
 # Todo: Port sound commands (hello, inhale, mouthful)
