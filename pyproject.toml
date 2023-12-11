@@ -6,7 +6,7 @@ authors = ["Peter DeVita <mewtwo2643@yahoo.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10,<3.12"
-aioconsole = "^0.6.1"
+aioconsole = "^0.7.0"
 aiohttp = "^3.8.4"
 mypy = "^1.4.1"
 sqlalchemy-stubs = "^0.4"
