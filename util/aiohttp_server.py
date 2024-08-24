@@ -16,5 +16,6 @@ def hook_aiohttp_server(c: alluka.Injected[tanjun.Client]) -> None:
 
         @c.with_client_callback(tanjun.ClientCallbackNames.CLOSED)
         async def on_closed() -> None:
+            await app.shutdown()
             task.cancel()
 
