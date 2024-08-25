@@ -16,7 +16,7 @@ from atsume.bot import initialize_atsume
 from audio.data.discord_packet import request_ip, opcode_0_identify, get_ip_response, opcode_3_heartbeat, \
     opcode_1_select, RTPHeader, opcode_5_speaking
 from audio.connection.process_bridge import AbstractCommunicationBridge, TCPSocketBridge
-from audio.data.encrypt import select_mode
+from audio.data.encrypt import select_mode, AudioEncryption
 from audio.processing.manager import AudioManager
 from audio.utils.background_tasks import BackgroundTasks
 
@@ -46,7 +46,7 @@ class VoiceConnectionProcess(BackgroundTasks):
         self.manager_connection: AbstractCommunicationBridge = TCPSocketBridge(port=manager_port)
         self.gateway: typing.Optional[aiohttp.ClientWebSocketResponse] = None
         self.voice_socket: typing.Optional[asyncio_dgram.DatagramClient] = None
-        self.session = aiohttp.ClientSession()
+        self.session: typing.Optional[aiohttp.ClientSession] = None
         self.endpoint = endpoint
         self.guild_id = guild_id
         self.channel_id = channel_id
@@ -54,7 +54,7 @@ class VoiceConnectionProcess(BackgroundTasks):
         self.session_id = session_id
         self.user_id = user_id
         self.manager_port = manager_port
-        self.audio = AudioManager(self)
+        self.audio: typing.Optional[AudioManager] = None
 
         # Data set later by the Opcode 2 Ready response
         self.ssrc: typing.Optional[int] = None
@@ -62,12 +62,16 @@ class VoiceConnectionProcess(BackgroundTasks):
         self.voice_port: typing.Optional[int] = None
         self.encrypt_mode: typing.Optional[str] = None
         self.rtp_header: typing.Optional[RTPHeader] = None
+        self.encryption: typing.Optional[AudioEncryption] = None
 
         # Data set later by the Opcode 4 Session Description response
         self.secret_key: typing.Optional[bytes] = None
 
         # Data set later by the Opcode 8 Hello response
         self.heartbeat_interval: typing.Optional[float] = None
+
+        # Sequence number used by Discord to tell if we missed any packets
+        self.seq_ack = -1
 
         # Public IP and Port (discovered once we open the voice UDP socket)
         self.public_ip: typing.Optional[str] = None
@@ -88,8 +92,10 @@ class VoiceConnectionProcess(BackgroundTasks):
 
     async def start(self) -> None:
         # Start the gateway connection
+        self.session = aiohttp.ClientSession()
+        self.audio = AudioManager(self)
         logger.info(f"Starting the voice gateway connection to {self.endpoint}...")
-        self.gateway = await self.session.ws_connect(f"{self.endpoint}?v=4")
+        self.gateway = await self.session.ws_connect(f"{self.endpoint}?v=8")
 
         # Send Discord the identify packet
         logger.info("Sending Opcode 0 Identify packet...")
@@ -273,7 +279,7 @@ class VoiceConnectionProcess(BackgroundTasks):
         try:
             while not self._stop and self.gateway and self.heartbeat_interval is not None:
                 logger.info("Sending Opcode 3 Heartbeat...")
-                await self.gateway.send_str(opcode_3_heartbeat(598209))
+                await self.gateway.send_str(opcode_3_heartbeat(598209, self.seq_ack))
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             pass
@@ -282,6 +288,7 @@ class VoiceConnectionProcess(BackgroundTasks):
 
     async def receive_opcode(self, data: dict) -> None:
         opcode_data: dict = data["d"]
+        self.seq_ack = data.get("seq", self.seq_ack)
         print(data)
         match data["op"]:
             # Ready Opcode
@@ -297,6 +304,7 @@ class VoiceConnectionProcess(BackgroundTasks):
             case 4:
                 self.encrypt_mode = opcode_data["mode"]
                 self.secret_key = bytes(opcode_data["secret_key"])
+                self.encryption = AudioEncryption(self.secret_key, self.encrypt_mode)
                 self._audio_ready.set()
             # Hello Opcode
             case 8:

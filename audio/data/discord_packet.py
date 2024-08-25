@@ -71,10 +71,13 @@ def opcode_5_speaking(ssrc: int, delay: int = 0, microphone: bool = True,
     # })
 
 
-def opcode_3_heartbeat(nonce: int) -> str:
+def opcode_3_heartbeat(nonce: int, seq_ack: int) -> str:
     return _opcode({
         "op": 3,
-        "d": nonce
+        "d": {
+            "t": nonce,
+            "seq_ack": seq_ack
+        }
     })
 
 

@@ -9,7 +9,7 @@ from audio.connection.process_bridge import TCPSocketBridge
 
 
 if typing.TYPE_CHECKING:
-    from audio.host import VoiceConnection
+    from audio.voice_connection import VoiceConnection
 
 logger = logging.getLogger(__name__)
 

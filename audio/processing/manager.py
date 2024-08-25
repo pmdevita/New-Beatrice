@@ -9,7 +9,6 @@ from numpy import typing as np_typing
 
 from audio.processing.async_file import AsyncFileManager
 from audio.utils.stats import RollingAverage
-from audio.data.encrypt import encrypt_audio
 from audio.data.opus import OpusEncoder, OpusApplication
 from audio.processing.process import AudioPipeline
 from audio.data.audio import AudioConfig, AudioChannelConfig
@@ -107,8 +106,7 @@ class AudioManager(BackgroundTasks):
         await self.client.voice_socket.send(packet)
 
     async def _encrypt_audio(self, opus_frame: bytes) -> bytes:
-        return encrypt_audio(self.client.encrypt_mode, self.client.secret_key,
-                             self.client.rtp_header.get_next_header(), opus_frame)
+        return self.client.encryption(self.client.rtp_header.get_next_header(), opus_frame)
 
     async def start(self):
         if not self._playback_task:
