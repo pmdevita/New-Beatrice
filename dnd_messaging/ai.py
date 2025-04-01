@@ -2,14 +2,17 @@ import abc
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from random import randrange, choice
 
 import hikari
 import tanjun
+import tiktoken
+from anthropic import AsyncAnthropic
 from atsume.settings import settings
 from groq import AsyncGroq
 
 from .tokenizer import Tokenizer as LlamaTokenizer
-from .prompts import SCORE_PROMPT, REWRITE_PROMPT, SCORE_REGEX
+from .prompts import SCORE_PROMPT, REWRITE_PROMPT, SCORE_REGEX, CHAT_LOG_PROMPT
 
 STATUS_REGEX = re.compile("^-#.*?(?:success!|failure!)\n")
 
@@ -28,7 +31,7 @@ class AIClient(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def inference(self, messages: list[dict]) -> str:
+    async def inference(self, messages: list[dict], max_tokens=1000) -> str:
         ...
 
 
@@ -47,8 +50,41 @@ class GroqClient(AIClient):
         return message.choices[0].message.content
 
 
-ai_client = GroqClient()
+class AnthropicClient(AIClient):
+    def __init__(self):
+        # self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        self.anthropic = AsyncAnthropic(api_key=settings.ANTHROPIC_KEY)
+        self.model = settings.ANTHROPIC_MODEL
 
+    def count_tokens(self, text: str) -> int:
+        return 0
+
+    async def inference(self, messages: list[dict], max_tokens=1000) -> str:
+        # Anthropic is a stick in the mud
+        system_message = "\n".join([m["content"] for m in messages if m["role"] == "system"])
+        fixed_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                continue
+            if not fixed_messages:
+                fixed_messages.append(m)
+                continue
+            if m["role"] == fixed_messages[-1]["role"]:
+                fixed_messages[-1]["content"] += "\n" + m["content"]
+            else:
+                fixed_messages.append(m)
+
+        # How annoying can you be?
+        if not fixed_messages or fixed_messages[0]["role"] == "assistant":
+            fixed_messages.insert(0, {"role": "user", "content": "..."})
+
+        message = await self.anthropic.messages.create(model=self.model, messages=fixed_messages,
+                                                       max_tokens=max_tokens, system=system_message)
+        return message.content[0].text
+
+
+ai_client = GroqClient()
+anthropic_client = AnthropicClient()
 
 async def message_to_log(client: tanjun.Client, channel: hikari.GuildTextChannel) -> str:
     budget = settings.TOKEN_BUDGET
@@ -82,9 +118,6 @@ async def message_to_log(client: tanjun.Client, channel: hikari.GuildTextChannel
 async def score_message(log: str, member: hikari.Member, message: str) -> tuple[str, int] | None:
     prompt = SCORE_PROMPT.format(chat_log=log, message=message, user=member.display_name)
 
-    print(prompt)
-    print(ai_client.count_tokens(prompt))
-
     parsed = None
     for i in range(5):
         result = await ai_client.inference(messages=[{"role": "system", "content": prompt}])
@@ -109,5 +142,13 @@ async def score_message(log: str, member: hikari.Member, message: str) -> tuple[
 
 
 async def rewrite_failed_message(log: str, member: hikari.Member, message: str, category: str) -> str:
-    prompt = REWRITE_PROMPT.format(chat_log=log, message=message, category=category, user=member.display_name)
-    return await ai_client.inference(messages=[{"role": "system", "content": prompt}])
+    if randrange(0, 2) == 0:
+        chat_log = CHAT_LOG_PROMPT.format(chat_log=log)
+    else:
+        chat_log = ""
+
+    prompt = REWRITE_PROMPT.format(chat_log=chat_log, message=message, category=category, user=member.display_name)
+
+    chosen_client = choice([ai_client, anthropic_client])
+
+    return await chosen_client.inference(messages=[{"role": "system", "content": prompt}])

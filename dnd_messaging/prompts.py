@@ -56,13 +56,7 @@ you know... i was thinking of visiting manchester some time. if you'd like, i ca
 
 Failed Message:
 i will spend £150 on a return train ticket RIGHT NOW if you PROMISE to hold hands with me just ONE time PLEASE PLEASE PLEASE PLEASE PLEASE
-
-Here's the chat log for context.
-
-<chat log>
 {chat_log}
-</chat log>
-
 The following is the new message written by {user}. This failed a {category} check.
 
 <new message>
@@ -71,3 +65,13 @@ The following is the new message written by {user}. This failed a {category} che
 
 Now respond with the failed {category} check version of the message.
 """
+
+CHAT_LOG_PROMPT = """
+Here's the chat log for context.
+
+<chat log>
+{chat_log}
+</chat log>
+
+"""
+

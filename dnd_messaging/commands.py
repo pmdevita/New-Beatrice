@@ -37,11 +37,11 @@ async def generate_member_stats(client: tanjun.Client, guild_id: hikari.Snowflak
     if created:
         c = cast(hikari.TextableChannel, await client.rest.fetch_channel(channel.channel))
         await c.send(f"""DND stats for {member.mention}
-- Charisma: {stats.charisma}
-- Intelligence: {stats.intelligence}
-- Wisdom: {stats.wisdom}
-- Deception: {stats.deception}
-- Humor: {stats.humor}
+- Charisma: {stats.charisma} ({ability_score_to_modifier(stats.charisma)})
+- Intelligence: {stats.intelligence} ({ability_score_to_modifier(stats.intelligence)})
+- Wisdom: {stats.wisdom} ({ability_score_to_modifier(stats.wisdom)})
+- Deception: {stats.deception} ({ability_score_to_modifier(stats.deception)})
+- Humor: {stats.humor} ({ability_score_to_modifier(stats.humor)})
 """)
 
     return stats
@@ -76,8 +76,6 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
     await event.message.delete()
 
     async with channel.trigger_typing():
-        print(stats)
-
         log = await message_to_log(client, channel)
         result = await score_message(log, member, message)
         if result is None:
@@ -85,11 +83,10 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
 
         category, score = result
         abbr_cat = abbreviations[category]
-        print(category, score)
 
-        user_stat = getattr(stats, category.lower())
+        user_ability_score = getattr(stats, category.lower())
+        user_stat = ability_score_to_modifier(user_ability_score)
         dice_roll = randrange(1, 21)
-        print(f"{event.message.author} rolls a {dice_roll}, plus their {category} {user_stat} makes {dice_roll + user_stat}")
 
         if user_stat + dice_roll < score or dice_roll == 1:
             new_message = await rewrite_failed_message(log, member, message, category)

@@ -2,15 +2,19 @@ import hikari
 from atsume.db import Model
 import ormar
 from random import randrange
+from math import floor
 
 # Create your models here.
 
 
 def roll_stat() -> int:
-    rolls = [randrange(1, 6) for i in range(4)]
+    rolls = [randrange(1, 7) for i in range(4)]
     rolls.sort()
-    print(rolls)
-    return sum(rolls[:-1])
+    return sum(rolls[1:])
+
+
+def ability_score_to_modifier(score: int) -> int:
+    return floor((score - 10) / 2)
 
 
 class DNDStatsChannel(Model):
