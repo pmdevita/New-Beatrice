@@ -63,7 +63,7 @@ The following is the new message written by {user}. This failed a {category} che
 {message}
 </new_message
 
-Now respond with the failed {category} check version of the message.
+Now respond with the failed {category} check version of the message. Respond only with the content of the message.
 """
 
 CHAT_LOG_PROMPT = """

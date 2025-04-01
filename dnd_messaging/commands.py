@@ -59,6 +59,8 @@ abbreviations = {
 @atsume.with_listener
 async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Injected[tanjun.Client]):
     message = event.message.content
+    if message is None:
+        return
 
     # Stop from trying to correct messages it shouldn't
     if message[:3] in ("-b ", "-t "):
@@ -73,7 +75,11 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
 
     member = await client.rest.fetch_member(event.message.guild_id, event.message.author)
     channel = cast(hikari.GuildTextChannel, await event.message.fetch_channel())
-    await event.message.delete()
+    embeds = event.message.embeds
+    attachments = event.message.attachments
+
+    if not attachments:
+        await event.message.delete()
 
     async with channel.trigger_typing():
         log = await message_to_log(client, channel)
@@ -92,18 +98,16 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
             new_message = await rewrite_failed_message(log, member, message, category)
 
             new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - failure!\n{new_message}"
-
-            await fake_message(client, channel, member, new_message)
-            return
         else:
             new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - success!\n{message}"
 
-        await fake_message(client, channel, member, new_message)
+        await fake_message(client, channel, member, new_message, embeds, attachments)
+        if attachments:
+            await event.message.delete()
 
 
-async def fake_message(client: tanjun.Client, channel: hikari.GuildTextChannel, user: hikari.Member, message: str):
+async def fake_message(client: tanjun.Client, channel: hikari.GuildTextChannel, user: hikari.Member, message: str, embeds, attachments):
     webhooks = await client.rest.fetch_channel_webhooks(channel)
-    print(webhooks)
     if len(webhooks) == 0:
         webhook = await client.rest.create_webhook(channel, "DND Messaging")
     else:
