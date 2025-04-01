@@ -58,13 +58,20 @@ async def message_to_log(client: tanjun.Client, channel: hikari.GuildTextChannel
     async for m in channel.fetch_history(after=datetime.now() - timedelta(days=1)):
         messages.append(m)
     for m in reversed(messages):
+        if m.content is None:
+            continue
+
         if m.author not in user_cache:
             if m.author.is_bot and m.author.discriminator == "0000":
-                user_cache[m.author] = m.author.username
+                name = m.author.username
             else:
                 member = await client.rest.fetch_member(channel.guild_id, m.author)
-                user_cache[m.author] = member.nickname
-        log.insert(0, f"{user_cache[m.author]}: {sanitize_message(m)}")
+                user_cache[m.author] = member.display_name
+                name = member.display_name
+        else:
+            name = user_cache[m.author]
+
+        log.insert(0, f"{name}: {sanitize_message(m)}")
         budget -= ai_client.count_tokens(log[0])
         if budget < 0:
             break

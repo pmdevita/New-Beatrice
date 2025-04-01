@@ -45,14 +45,17 @@ A user failed a check, rolling a n instead of the minimum n. Rewrite their messa
 Some examples are:
 
 Original Message (Intelligence check):
-> How do you sous vide a crême brulée?
+How do you sous vide a crême brulée?
+
 Failed Message:
-> Does anyone know how to deep fry whipped cream?
+Does anyone know how to deep fry whipped cream?
+
 
 Original Message (Charisma check):
-> you know... i was thinking of visiting manchester some time. if you'd like, i can swing by blackburn and we can spend a couple days together at your place c:
+you know... i was thinking of visiting manchester some time. if you'd like, i can swing by blackburn and we can spend a couple days together at your place c:
+
 Failed Message:
-> i will spend £150 on a return train ticket RIGHT NOW if you PROMISE to hold hands with me just ONE time PLEASE PLEASE PLEASE PLEASE PLEASE
+i will spend £150 on a return train ticket RIGHT NOW if you PROMISE to hold hands with me just ONE time PLEASE PLEASE PLEASE PLEASE PLEASE
 
 Here's the chat log for context.
 
@@ -66,5 +69,5 @@ The following is the new message written by {user}. This failed a {category} che
 {message}
 </new_message
 
-Now respond with the failed {category} check version of the message. If it makes sense to, you may use Discord-flavored Markdown.
+Now respond with the failed {category} check version of the message.
 """
