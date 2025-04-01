@@ -67,7 +67,11 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
         return
 
     if event.author.is_bot:
-        return
+        bot = await client.rest.fetch_my_user()
+        if event.author.id != bot.id:
+            return
+        elif "DND stats for" in message:
+            return
 
     stats = await generate_member_stats(client, event.message.guild_id, event.message.member)
     if stats is None:
@@ -85,21 +89,21 @@ async def on_message(event: hikari.events.MessageCreateEvent, client: alluka.Inj
         log = await message_to_log(client, channel)
         result = await score_message(log, member, message)
         if result is None:
-            return
-
-        category, score = result
-        abbr_cat = abbreviations[category]
-
-        user_ability_score = getattr(stats, category.lower())
-        user_stat = ability_score_to_modifier(user_ability_score)
-        dice_roll = randrange(1, 21)
-
-        if user_stat + dice_roll < score or dice_roll == 1:
-            new_message = await rewrite_failed_message(log, member, message, category)
-
-            new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - failure!\n{new_message}"
+            new_message = message
         else:
-            new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - success!\n{message}"
+            category, score = result
+            abbr_cat = abbreviations[category]
+
+            user_ability_score = getattr(stats, category.lower())
+            user_stat = ability_score_to_modifier(user_ability_score)
+            dice_roll = randrange(1, 21)
+
+            if user_stat + dice_roll < score or dice_roll == 1:
+                new_message = await rewrite_failed_message(log, member, message, category)
+
+                new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - failure!\n{new_message}"
+            else:
+                new_message = f"-# {abbr_cat} {score} - rolled a {dice_roll} - success!\n{message}"
 
         await fake_message(client, channel, member, new_message, embeds, attachments)
         if attachments:

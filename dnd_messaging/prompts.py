@@ -56,6 +56,12 @@ you know... i was thinking of visiting manchester some time. if you'd like, i ca
 
 Failed Message:
 i will spend £150 on a return train ticket RIGHT NOW if you PROMISE to hold hands with me just ONE time PLEASE PLEASE PLEASE PLEASE PLEASE
+
+Original Message (Wisdom check):
+Oh my gosh, I'm so sorry to hear that. Are you OK? Do you need us to come help you with anything?
+
+Failed Message:
+Uhhhh sorry I guess???? Go cry your eyes out, hope you get better!
 {chat_log}
 The following is the new message written by {user}. This failed a {category} check.
 

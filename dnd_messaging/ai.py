@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from random import randrange, choice
 
+import groq
 import hikari
 import tanjun
 import tiktoken
@@ -24,6 +25,15 @@ def sanitize_message(message: hikari.Message):
     text = STATUS_REGEX.sub("", text)
     return text
 
+
+class AIClientError(Exception):
+    pass
+
+class AIResponseError(AIClientError):
+    pass
+
+class AIServiceUnavailable(AIResponseError):
+    pass
 
 class AIClient(abc.ABC):
     @abc.abstractmethod
@@ -46,7 +56,10 @@ class GroqClient(AIClient):
         return len(self.tokenizer.encode(text, bos=False, eos=False))
 
     async def inference(self, messages: list[dict], max_tokens=1000) -> str:
-        message = await self.client.chat.completions.create(model=self.model, messages=messages, max_tokens=max_tokens)
+        try:
+            message = await self.client.chat.completions.create(model=self.model, messages=messages, max_tokens=max_tokens)
+        except groq.InternalServerError:
+            raise AIServiceUnavailable()
         return message.choices[0].message.content
 
 
@@ -122,7 +135,10 @@ async def score_message(log: str, member: hikari.Member, message: str) -> tuple[
 
     parsed = None
     for i in range(5):
-        result = await ai_client.inference(messages=[{"role": "system", "content": prompt}])
+        try:
+            result = await ai_client.inference(messages=[{"role": "system", "content": prompt}])
+        except AIResponseError:
+            return None
         print(result)
         parsed = SCORE_REGEX.findall(result)
         if parsed:
