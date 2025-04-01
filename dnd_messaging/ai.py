@@ -91,9 +91,11 @@ async def message_to_log(client: tanjun.Client, channel: hikari.GuildTextChannel
     messages = []
     log = []
     user_cache = {}
-    async for m in channel.fetch_history(after=datetime.now() - timedelta(days=1)):
+    async for m in channel.fetch_history(before=datetime.now()):
         messages.append(m)
-    for m in reversed(messages):
+        if len(messages) > 10:
+            break
+    for m in messages:
         if m.content is None:
             continue
 
