@@ -7,10 +7,10 @@ from random import randrange
 
 
 def roll_stat() -> int:
-    rolls = [randrange(1, 7) for i in range(4)]
+    rolls = [randrange(1, 6) for i in range(4)]
     rolls.sort()
     print(rolls)
-    return sum(rolls[1:])
+    return sum(rolls[:-1])
 
 
 class DNDStatsChannel(Model):
