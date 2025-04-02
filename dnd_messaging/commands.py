@@ -1,3 +1,5 @@
+import asyncio
+
 import alluka
 import hikari
 import tanjun
@@ -116,4 +118,4 @@ async def fake_message(client: tanjun.Client, channel: hikari.GuildTextChannel, 
         webhook = await client.rest.create_webhook(channel, "DND Messaging")
     else:
         webhook = webhooks[0]
-    await webhook.execute(message, username=user.display_name, avatar_url=user.avatar_url)
+    await webhook.execute(message, username=user.display_name, avatar_url=user.avatar_url, embeds=embeds, attachments=attachments)

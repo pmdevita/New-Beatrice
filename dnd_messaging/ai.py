@@ -2,7 +2,7 @@ import abc
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from random import randrange, choice
+from random import randrange, choice, choices
 
 import groq
 import hikari
@@ -160,13 +160,13 @@ async def score_message(log: str, member: hikari.Member, message: str) -> tuple[
 
 
 async def rewrite_failed_message(log: str, member: hikari.Member, message: str, category: str) -> str:
-    if randrange(0, 2) == 0:
-        chat_log = CHAT_LOG_PROMPT.format(chat_log=log)
-    else:
+    if randrange(0, 4) == 0:
         chat_log = ""
+    else:
+        chat_log = CHAT_LOG_PROMPT.format(chat_log=log)
 
     prompt = REWRITE_PROMPT.format(chat_log=chat_log, message=message, category=category, user=member.display_name)
 
-    chosen_client = choice([ai_client, anthropic_client])
+    chosen_client = choices([ai_client, anthropic_client], weights=[.2, .8])[0]
 
     return await chosen_client.inference(messages=[{"role": "system", "content": prompt}])
