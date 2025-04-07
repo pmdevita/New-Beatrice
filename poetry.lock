@@ -2,15 +2,18 @@
 
 [[package]]
 name = "aioconsole"
-version = "0.6.2"
+version = "0.8.1"
 description = "Asynchronous console and interfaces for asyncio"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "aioconsole-0.6.2-py3-none-any.whl", hash = "sha256:1968021eb03b88fcdf5f5398154b21585e941a7b98c9fcef51c4bb0158156619"},
-    {file = "aioconsole-0.6.2.tar.gz", hash = "sha256:bac11286f1062613d2523ceee1ba81c676cd269812b865b66b907448a7b5f63e"},
+    {file = "aioconsole-0.8.1-py3-none-any.whl", hash = "sha256:e1023685cde35dde909fbf00631ffb2ed1c67fe0b7058ebb0892afbde5f213e5"},
+    {file = "aioconsole-0.8.1.tar.gz", hash = "sha256:0535ce743ba468fb21a1ba43c9563032c779534d4ecd923a46dbd350ad91d234"},
 ]
+
+[package.extras]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "pytest-repeat", "uvloop ; platform_python_implementation != \"PyPy\" and sys_platform != \"win32\""]
 
 [[package]]
 name = "aiofiles"
@@ -2452,4 +2455,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.13"
-content-hash = "381b949f50f0906fb498f08c8267142453b239efe47f822843aab8e49af57579"
+content-hash = "fcf9a7f11606a5b85ba7b2d1f74eab21aa796d809046445c3c41a723a76137b8"
