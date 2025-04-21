@@ -625,26 +625,26 @@ sqlite = ["aiosqlite"]
 
 [[package]]
 name = "dateparser"
-version = "1.2.0"
+version = "1.2.1"
 description = "Date parsing library designed to parse dates from HTML pages"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "dateparser-1.2.0-py2.py3-none-any.whl", hash = "sha256:0b21ad96534e562920a0083e97fd45fa959882d4162acc358705144520a35830"},
-    {file = "dateparser-1.2.0.tar.gz", hash = "sha256:7975b43a4222283e0ae15be7b4999d08c9a70e2d378ac87385b1ccf2cffbbb30"},
+    {file = "dateparser-1.2.1-py3-none-any.whl", hash = "sha256:bdcac262a467e6260030040748ad7c10d6bacd4f3b9cdb4cfd2251939174508c"},
+    {file = "dateparser-1.2.1.tar.gz", hash = "sha256:7e4919aeb48481dbfc01ac9683c8e20bfe95bb715a38c1e9f6af889f4f30ccc3"},
 ]
 
 [package.dependencies]
-python-dateutil = "*"
-pytz = "*"
-regex = "<2019.02.19 || >2019.02.19,<2021.8.27 || >2021.8.27"
-tzlocal = "*"
+python-dateutil = ">=2.7.0"
+pytz = ">=2024.2"
+regex = ">=2015.06.24,<2019.02.19 || >2019.02.19,<2021.8.27 || >2021.8.27"
+tzlocal = ">=0.2"
 
 [package.extras]
-calendars = ["convertdate", "hijri-converter"]
-fasttext = ["fasttext"]
-langdetect = ["langdetect"]
+calendars = ["convertdate (>=2.2.1)", "hijridate"]
+fasttext = ["fasttext (>=0.9.1)", "numpy (>=1.19.3,<2)"]
+langdetect = ["langdetect (>=1.0.0)"]
 
 [[package]]
 name = "distro"
@@ -2040,14 +2040,14 @@ six = ">=1.5"
 
 [[package]]
 name = "pytz"
-version = "2024.1"
+version = "2025.2"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "pytz-2024.1-py2.py3-none-any.whl", hash = "sha256:328171f4e3623139da4983451950b28e95ac706e13f3f2630a879749e7a8b319"},
-    {file = "pytz-2024.1.tar.gz", hash = "sha256:2a29735ea9c18baf14b448846bde5a48030ed267578472d8955cd0e7443a9812"},
+    {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
+    {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
 ]
 
 [[package]]
@@ -2595,4 +2595,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.13"
-content-hash = "5bc44621c7820ab1ed51b0a66f3639b42f3c47420ad82c2ffd22958851796b19"
+content-hash = "b2c3efad5f3d944d75ae4e0e2ce9e247ebbc071c1a7d9c392644f614d7f9adc9"
