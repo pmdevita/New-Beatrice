@@ -2383,14 +2383,14 @@ telegram = ["requests"]
 
 [[package]]
 name = "types-aiofiles"
-version = "23.2.0.20240623"
+version = "24.1.0.20250606"
 description = "Typing stubs for aiofiles"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "types-aiofiles-23.2.0.20240623.tar.gz", hash = "sha256:d515b2fa46bf894aff45a364a704f050de3898344fd6c5994d58dc8b59ab71e6"},
-    {file = "types_aiofiles-23.2.0.20240623-py3-none-any.whl", hash = "sha256:70597b29fc40c8583b6d755814b2cd5fcdb6785622e82d74ef499f9066316e08"},
+    {file = "types_aiofiles-24.1.0.20250606-py3-none-any.whl", hash = "sha256:e568c53fb9017c80897a9aa15c74bf43b7ee90e412286ec1e0912b6e79301aee"},
+    {file = "types_aiofiles-24.1.0.20250606.tar.gz", hash = "sha256:48f9e26d2738a21e0b0f19381f713dcdb852a36727da8414b1ada145d40a18fe"},
 ]
 
 [[package]]
@@ -2586,4 +2586,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10,<3.13"
-content-hash = "9ff09c1ab7f8eed51a0db204479047b9c5565c09643d957ec1155c9bd304ffd4"
+content-hash = "f5ae813abf18d06920e496a2736cc24529f7fae0a30a13e0e582daa330173b8c"
