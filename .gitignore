@@ -4,3 +4,4 @@ assets
 *.db
 .idea
 *.pyc
+.env

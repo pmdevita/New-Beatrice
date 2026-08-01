@@ -1,5 +1,8 @@
 import hikari
 from pathlib import Path
+from dotenv import load_dotenv
+
+from atsume.settings import env
 from atsume.settings.type_hints import *
 from zoneinfo import ZoneInfo
 
@@ -11,30 +14,42 @@ from zoneinfo import ZoneInfo
 
 BASE_DIR = Path(__file__).parent.parent
 
+load_dotenv(BASE_DIR / ".env")
+
 COMPONENTS = [
-    # "management.basic",
+    "atsume.contrib.handles_gui",
+    "atsume.contrib.handles",
+    "management.basic",
     # "management.clean_up",
     # "management.console",
     # "management.schedule",
     # "splatgear2",
     # "suscallout",
-    "audio",
-    "secret_santa",
+    # "audio",
+    # "secret_santa",
     # "hurricane"
     # "chatgpt"
 ]
 
-EXTENSIONS = [
-    "atsume.extensions.aiohttp.hook_aiohttp",
-    "util.aiohttp_server.hook_aiohttp_server",
-    "atsume.extensions.timer.hook_extension"
-]
+# EXTENSIONS = [
+#     "atsume.extensions.aiohttp.hook_aiohttp",
+#     "util.aiohttp_server.hook_aiohttp_server",
+#     "atsume.extensions.timer.hook_extension"
+# ]
 
 HIKARI_LOGGING = False
 
 INTENTS = hikari.Intents.ALL_UNPRIVILEGED | hikari.Intents.MESSAGE_CONTENT | hikari.Intents.GUILD_MEMBERS
 
+COMPONENT_PERMISSIONS_CLASS = "atsume.contrib.handles.permissions.DatabasePermissions"
+
 TIMEZONE = "America/New_York"
 
-VOICE_COMPONENT = "audio.manager.VoiceComponent"
+# VOICE_COMPONENT = "audio.manager.VoiceComponent"
+
+TOKEN = env("TOKEN")
+
+DATABASE_URL = env("DATABASE_URL")
+
+MESSAGE_PREFIX = env("MESSAGE_PREFIX")
 

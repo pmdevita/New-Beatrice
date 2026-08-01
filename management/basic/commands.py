@@ -3,15 +3,16 @@ from random import choice
 import re
 
 import hikari
-import tanjun
 import atsume
+from atsume.command.context import CommandContext, MessageContext
 from atsume.settings import settings
+from atsume.command import command, CommandModel
 
-from audio.data.audio import AudioFile
-from audio.host import VoiceComponent
+# from audio.data.audio import AudioFile
+# from audio.host import VoiceComponent
 
 from typing import Annotated, Optional
-from tanjun.annotations import Member, User, Positional
+
 
 DIABETES = re.compile("my family history has (\\w+)", re.I)
 SOCK_DRAWER = re.compile("there\\'?s nothing happening", re.I)
@@ -22,18 +23,19 @@ HI_FILES = [
 ]
 
 
-@tanjun.annotations.with_annotated_args(follow_wrapped=True)
-@tanjun.as_message_command("hi", "hello", "hey", "howdy", "beatrice", "beako", "betty")
-@tanjun.as_slash_command("hi", "Beatrice says hi")
-async def hello(ctx: atsume.Context,
-                member: Annotated[Optional[Member], "The user to say hi to.", Positional()] = None
-                ):
-    member: hikari.Member | hikari.User = member if member else ctx.member
-    member = member if member else ctx.author
-    if isinstance(member, hikari.Member) and ctx.voice:
-        guild = member.get_guild()
-        assert guild is not None
-        voice_state = guild.get_voice_state(member)
+# @tanjun.as_message_command("hi", "hello", "hey", "howdy", "beatrice", "beako", "betty")
+
+class HiModel(CommandModel):
+    member: Optional[hikari.Member]
+
+
+@command("hi", "Beatrice says hi")
+async def hello(ctx: CommandContext | MessageContext, args: HiModel):
+    member: hikari.Member | hikari.User = args.member if args.member else ctx.author
+    # if isinstance(member, hikari.Member) and ctx.voice:
+    #     guild = member.get_guild()
+    #     assert guild is not None
+    #     voice_state = guild.get_voice_state(member)
         # if voice_state and voice_state.channel_id:
         #     return await hello_audio(ctx.voice, typing.cast(hikari.GuildTextChannel, ctx.get_channel()),
         #                              typing.cast(hikari.GuildVoiceChannel, guild.get_channel(voice_state.channel_id)))
@@ -58,36 +60,36 @@ async def hello_audio(voice: hikari.api.VoiceComponent, text_channel: hikari.Gui
     await text_channel.send(line[1])
 
 
-@tanjun.annotations.with_annotated_args(follow_wrapped=True)
-@tanjun.as_message_command("ping")
-@tanjun.as_slash_command("ping", "Get the bot's current websocket latency")
-async def ping(ctx: tanjun.abc.Context):
-    latency = ctx.component.client.shards.heartbeat_latency
-    await ctx.respond(f"Hey stop that! ({round(latency * 1000)}ms)")
-
-
-@tanjun.annotations.with_annotated_args(follow_wrapped=True)
-@tanjun.as_message_command("ban")
-@tanjun.as_slash_command("ban", "Ban this user!")
-async def ban(ctx: tanjun.abc.Context, member: Annotated[User, "User to ban"]):
-    text = f"You're in big trouble {member.mention}, I suppose!"
-    video_url = "https://cdn.discordapp.com/attachments/984306454133637170/984318182477152306/beatriceban.mov"
-    await ctx.respond(text)
-    await ctx.get_channel().send(video_url)
-
-
-@atsume.with_listener
-async def on_message(message: hikari.events.MessageCreateEvent):
-    if not message.content:
-        return
-    result = DIABETES.findall(message.content)
-    if result:
-        await (await message.message.fetch_channel()).send(f"(There is {result[0].lower()} in my family history)")
-    else:
-        result = SOCK_DRAWER.findall(message.content)
-        if result:
-            await asyncio.sleep(3)
-            await (await message.message.fetch_channel()).send(
-                "I finally got the wildfire in my sock drawer under control!")
+# @tanjun.annotations.with_annotated_args(follow_wrapped=True)
+# @tanjun.as_message_command("ping")
+# @tanjun.as_slash_command("ping", "Get the bot's current websocket latency")
+# async def ping(ctx: tanjun.abc.Context):
+#     latency = ctx.component.client.shards.heartbeat_latency
+#     await ctx.respond(f"Hey stop that! ({round(latency * 1000)}ms)")
+#
+#
+# @tanjun.annotations.with_annotated_args(follow_wrapped=True)
+# @tanjun.as_message_command("ban")
+# @tanjun.as_slash_command("ban", "Ban this user!")
+# async def ban(ctx: tanjun.abc.Context, member: Annotated[User, "User to ban"]):
+#     text = f"You're in big trouble {member.mention}, I suppose!"
+#     video_url = "https://cdn.discordapp.com/attachments/984306454133637170/984318182477152306/beatriceban.mov"
+#     await ctx.respond(text)
+#     await ctx.get_channel().send(video_url)
+#
+#
+# @atsume.with_listener
+# async def on_message(message: hikari.events.MessageCreateEvent):
+#     if not message.content:
+#         return
+#     result = DIABETES.findall(message.content)
+#     if result:
+#         await (await message.message.fetch_channel()).send(f"(There is {result[0].lower()} in my family history)")
+#     else:
+#         result = SOCK_DRAWER.findall(message.content)
+#         if result:
+#             await asyncio.sleep(3)
+#             await (await message.message.fetch_channel()).send(
+#                 "I finally got the wildfire in my sock drawer under control!")
 
 # Todo: Port sound commands (hello, inhale, mouthful)

@@ -5,14 +5,14 @@ description = ""
 authors = ["Peter DeVita <mewtwo2643@yahoo.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.11,<3.13"
+python = "^3.11,<3.15"
 aioconsole = "^0.6.1"
 aiohttp = "^3.8.4"
 mypy = "^1.11.1"
 sqlalchemy-stubs = "^0.4"
 cffi = "^1.15.1"
 #hikari-atsume = "^0.5.0"
-hikari-atsume = {git = "https://github.com/pmdevita/hikari-atsume.git", branch = "master"}
+hikari-atsume = {git = "https://github.com/pmdevita/hikari-atsume.git", branch = "commands"}
 aiosqlite = "0.19.0"
 numpy = "^1.25.2"
 pynacl = "^1.5.0"
@@ -23,7 +23,7 @@ beautifulsoup4 = "^4.12.2"
 lxml = "^4.9.3"
 aiofiles = "^23.2.1"
 types-aiofiles = "^23.2.0.0"
-orjson = "^3.9.7"
+orjson = "^3.11.9"
 dateparser = "^1.1.8"
 tiktoken = "^0.5.1"
 openai = "^1.2.3"
@@ -31,7 +31,8 @@ pydantic = "^2"
 libnacl = "^2.1.0"
 blobfile = "^3.0.0"
 groq = "^0.20.0"
-anthropic = "^0.49.0"
+anthropic = "^0.120.0"
+python-dotenv = "^1.2.2"
 
 
 [tool.atsume-mypy]
