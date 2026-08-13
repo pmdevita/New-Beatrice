@@ -49,7 +49,15 @@ TIMEZONE = "America/New_York"
 
 TOKEN = env("TOKEN")
 
+assets_path_str = env("ASSETS_PATH", default="")
+
+if assets_path_str:
+    ASSETS_PATH = Path(assets_path_str)
+else:
+    ASSETS_PATH = BASE_DIR / "assets"
+
 DATABASE_URL = env("DATABASE_URL")
 
 MESSAGE_PREFIX = env("MESSAGE_PREFIX")
 
+OPENROUTER_KEY = env("OPENROUTER_KEY", default="")

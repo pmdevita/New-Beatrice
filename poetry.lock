@@ -960,7 +960,7 @@ speedups = ["aiodns (>=3.6.1,<4.0.0)", "brotli (>=1.0.9,<2.0.0)", "ciso8601 (>=2
 type = "git"
 url = "https://github.com/pmdevita/hikari-atsume.git"
 reference = "commands"
-resolved_reference = "f5c03db1af947f6e07547b95d9e335e73f228555"
+resolved_reference = "74212c9e5c26b842cad7f136387a44067424745a"
 
 [[package]]
 name = "httpcore"
